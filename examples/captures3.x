@@ -1,0 +1,12 @@
+(define f
+  (let ((a 2) (b 9))
+    (lambda (x y)
+      (let ((a (+ a x)))
+        (lambda (z)
+          (+ (+ a x) (+ y b) z))
+      )
+    )
+  )
+)
+(define g (f 5 3))
+(g 4)

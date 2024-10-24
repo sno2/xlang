@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>xlang playground</title>
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link
+      href="https://fonts.bunny.net/css?family=archivo:400,500,800|roboto-mono:400"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css "
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor/min/vs/loader.js"></script>
+    <style>
+      html,
+      body {
+        height: 100vh;
+        width: 100vw;
+        margin: 0;
+        padding: 0;
+        background: #0d0a1c;
+        color: #fff;
+        font-family: "Archivo", sans-serif;
+      }
+
+      *,
+      *:before,
+      *:after {
+        box-sizing: border-box;
+      }
+
+      body {
+        display: grid;
+        grid-template-rows: 1fr 10fr;
+      }
+
+      header {
+        display: flex;
+        padding: 0.6rem 2rem;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: rgba(255, 255, 255, 0.2) 1px solid;
+      }
+
+      button {
+        outline: none;
+        font-family: inherit;
+        font-size: inherit;
+        border: none;
+        cursor: pointer;
+      }
+
+      header button {
+        padding: 0.6rem 1rem;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 0.9rem;
+      }
+
+      #examples-btn {
+        background: transparent;
+        color: #f7ebe7;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: border ease 100ms;
+      }
+
+      #examples-btn:hover {
+        border: 1px solid rgba(255, 255, 255, 0.6);
+      }
+
+      #run-btn {
+        background: #de5357;
+        color: #f7ebe7;
+        transition: filter ease 100ms;
+      }
+
+      #run-btn:hover {
+        filter: brightness(0.9);
+      }
+
+      header h1 {
+        font-size: 1.1rem;
+      }
+
+      header a {
+        color: inherit;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      header a:hover {
+        text-decoration: underline;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+        padding: 0;
+      }
+
+      header div label,
+      header div button {
+        margin-left: 1rem;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 1fr 42.5vw;
+      }
+
+      main #terminal-container {
+        padding: 0.8rem 1rem;
+        background: #000;
+      }
+
+      main #terminal {
+        height: 100%;
+      }
+
+      .xterm .xterm-cursor {
+        display: none !important;
+      }
+
+      #examples[open] {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+      }
+
+      #examples > div {
+        width: 45vw;
+        min-height: 40vh;
+        background: #f7ebe7;
+        padding: 1rem;
+        border-radius: 2px;
+      }
+
+      #examples h2 {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+      }
+
+      #examples p {
+        margin-bottom: 1rem;
+        line-height: 1.4;
+      }
+
+      #examples-list {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.3rem 0.2rem;
+        font-family: "Roboto Mono", monospace;
+        font-size: 0.95rem;
+      }
+
+      img {
+        height: 2rem;
+      }
+
+      .xterm .xterm-viewport {
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a href="https://github.com/sno2/xlang" target="_blank">
+        <img src="/github-mark-white.png" alt="GitHub logo" />
+        <h1>xlang playground</h1>
+      </a>
+      <div>
+        <button id="examples-btn">Examples</button>
+        <button id="run-btn">Run code</button>
+      </div>
+    </header>
+    <main>
+      <div id="container"></div>
+      <div id="terminal-container">
+        <div id="terminal"></div>
+      </div>
+    </main>
+    <dialog id="examples">
+      <div>
+        <h2>Examples</h2>
+        <p>
+          All example files are used in xlang's test suite. RefLang passes all
+          tests that are not related to
+          <a href="https://en.wikipedia.org/wiki/Tail_call" target="_blank"
+            >tail-call optimizations</a
+          >.
+        </p>
+        <div id="examples-list"></div>
+      </div>
+    </dialog>
+
+    <script type="module">
+      require.config({
+        paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor/min/vs" },
+      });
+
+      const worker = new Worker("worker.js");
+      const runBtn = document.getElementById("run-btn");
+      const examplesBtn = document.getElementById("examples-btn");
+      const examplesDialog = document.getElementById("examples");
+      const examplesList = document.getElementById("examples-list");
+
+      const term = new Terminal({
+        fontSize: 16.5,
+        fontFamily: "'Roboto Mono', monospace",
+      });
+      const fitAddon = new FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(document.getElementById("terminal"));
+      let waiting_execution = false;
+
+      window.onresize = () => {
+        fitAddon.fit();
+      };
+
+      const help = () => {
+        term.write(
+          `Welcome to the ${green(
+            "xlang"
+          )} playground!\r\n\r\nThis is an interpreter for the ArithLang, DefineLang, FuncLang, and RefLang used in COM S 3420 at Iowa State University written in Zig ⚡\r\n\r\n* Use ${underline(
+            "Shift + Enter"
+          )} to quickly run programs.\r\n* The URL is ${underline(
+            "updated"
+          )} to include your code after execution.\r\n* If the editor seems to be broken, ${underline(
+            "refresh"
+          )} the page.\r\n\r\nLearn more by visiting the GitHub repository at github.com/sno2/xlang\r\n\r\nThanks,\r\nCarter\r\n`
+        );
+      };
+      help();
+
+      const theme = fetch(
+        "https://cdn.jsdelivr.net/npm/monaco-themes@0.4.4/themes/Merbivore Soft.json"
+      ).then((res) => res.json());
+
+      const examples = fetch("examples.json").then((res) => res.json());
+
+      examplesBtn.addEventListener("click", () => {
+        examplesDialog.show();
+      });
+
+      examplesDialog.addEventListener("click", (e) => {
+        if (e.target === examplesDialog) {
+          examplesDialog.close();
+        }
+      });
+
+      require(["vs/editor/editor.main"], () => {
+        const editor = monaco.editor.create(
+          document.getElementById("container"),
+          {
+            value: `(define add
+  (lambda (a b) (+ a b))
+)
+(add 2 3)
+`,
+            language: "scheme",
+            theme: "vs-dark",
+            fontSize: 16.5,
+            fontFamily: "'Roboto Mono', monospace",
+            automaticLayout: true,
+            wordWrap: "on",
+            tabSize: 2,
+            stickyScroll: {
+              enabled: false,
+            },
+          }
+        );
+
+        if (window.location.hash) {
+          editor.setValue(atob(location.hash.slice(1)));
+        }
+
+        theme.then((data) => {
+          monaco.editor.defineTheme("dracula", data);
+          monaco.editor.setTheme("dracula");
+        });
+
+        let waiting_codegen = false;
+        const codeGen = () => {
+          if (waiting_codegen) {
+            return;
+          }
+          waiting_codegen = true;
+          const source = editor.getValue();
+
+          const listener = (e) => {
+            const data = e.data;
+
+            if (data.type === "codegen") {
+              waiting_codegen = false;
+              worker.removeEventListener("message", listener);
+              const { message, start, end } = data;
+
+              const model = editor.getModel();
+              if (!message) {
+                monaco.editor.setModelMarkers(model, "owner", []);
+                return;
+              }
+
+              const startPosition = model.getPositionAt(start);
+              const endPosition = model.getPositionAt(end);
+
+              const head = "error: [0m[1m";
+              const startI = message.indexOf(head) + head.length;
+              const endI = startI + message.slice(startI).indexOf("[0m");
+
+              monaco.editor.setModelMarkers(model, "owner", [
+                {
+                  severity: monaco.MarkerSeverity.Error,
+                  startLineNumber: startPosition.lineNumber,
+                  startColumn: startPosition.column,
+                  endLineNumber: endPosition.lineNumber,
+                  endColumn: endPosition.column,
+                  message: message.slice(startI, endI),
+                },
+              ]);
+            }
+          };
+
+          worker.addEventListener("message", listener);
+          worker.postMessage({
+            type: "codegen",
+            source,
+          });
+        };
+
+        editor.onDidChangeModelContent(codeGen);
+        codeGen();
+
+        let waiting_execution = false;
+        const execute = () => {
+          if (waiting_codegen || waiting_execution) {
+            return;
+          }
+          waiting_execution = true;
+          location.hash = btoa(editor.getValue());
+
+          worker.postMessage({
+            type: "execute",
+          });
+
+          term.clear();
+          term.write(`${blue("$")} xlang main.x\r\n`);
+          let start = performance.now();
+          const interval = setInterval(() => {
+            const seconds = Math.ceil((performance.now() - start) / 1000);
+            term.write(`\r\x1b[KExecution is taking a while. ${seconds}s`);
+            if (seconds >= 15) {
+              term.write(`\r\x1b[KExecution timed out after 15s.`);
+            }
+          }, 800);
+          const listener = (e) => {
+            clearInterval(interval);
+            const data = e.data;
+            if (data.type === "execute") {
+              waiting_execution = false;
+
+              if (data.exception && data.start !== -1) {
+                const model = editor.getModel();
+                const startPosition = model.getPositionAt(data.start);
+                const endPosition = model.getPositionAt(data.end);
+
+                const head = "error: [0m[1m";
+                const startI = data.exception.indexOf(head) + head.length;
+                const endI = startI + data.exception.slice(startI).indexOf("[0m");
+
+                monaco.editor.setModelMarkers(model, "owner", [
+                  {
+                    severity: monaco.MarkerSeverity.Error,
+                    startLineNumber: startPosition.lineNumber,
+                    startColumn: startPosition.column,
+                    endLineNumber: endPosition.lineNumber,
+                    endColumn: endPosition.column,
+                    message: data.exception.slice(startI, endI),
+                  },
+                ]);
+              }
+
+              term.write(
+                `\r\x1b[K${data.exception || data.stdout}\r\n${gray(
+                  `[duration: ${data.time.toFixed(2)}ms]`
+                )}\r\n`
+              );
+              worker.removeEventListener("message", listener);
+            }
+          };
+          worker.addEventListener("message", listener);
+        };
+
+        runBtn.addEventListener("click", execute);
+        editor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, execute);
+
+        examples.then((examples) => {
+          const entries = Object.entries(examples);
+          entries.sort(([a, _], [b, __]) => a > b);
+          for (const [name, base64] of entries) {
+            const anchor = document.createElement("a");
+            anchor.textContent = name;
+            anchor.href = `http://${window.location.host}#${base64}`;
+            anchor.addEventListener("click", (e) => {
+              e.preventDefault();
+              window.location.hash = base64;
+              editor.setValue(atob(location.hash.slice(1)));
+              examplesDialog.close();
+            });
+            examplesList.appendChild(anchor);
+          }
+        });
+      });
+
+      fitAddon.fit();
+
+      function red(string) {
+        return "\x1b[31m" + string + "\x1b[0m";
+      }
+
+      function blue(string) {
+        return "\x1b[34m" + string + "\x1b[0m";
+      }
+
+      function gray(string) {
+        return "\x1b[90m" + string + "\x1b[0m";
+      }
+
+      function green(string) {
+        return "\x1b[32m" + string + "\x1b[0m";
+      }
+
+      function underline(string) {
+        return "\x1b[4m" + string + "\x1b[0m";
+      }
+    </script>
+  </body>
+</html>

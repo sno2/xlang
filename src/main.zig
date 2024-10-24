@@ -1,0 +1,112 @@
+const std = @import("std");
+
+const xlang = @import("xlang");
+
+const CodeGen = xlang.CodeGen;
+const Vm = xlang.Vm;
+
+pub fn main() !void {
+    var gpa_: std.heap.GeneralPurposeAllocator(.{}) = .init;
+    defer _ = gpa_.deinit();
+
+    const gpa = gpa_.allocator();
+
+    const args = try std.process.argsAlloc(gpa);
+    defer std.process.argsFree(gpa, args);
+
+    if (args.len <= 1) {
+        std.process.fatal("expected a file path argument", .{});
+    }
+
+    const file_path = args[1];
+    const file = try std.fs.cwd().openFile(file_path, .{});
+    defer file.close();
+
+    const source = try file.readToEndAllocOptions(gpa, 4096, null, 1, 0);
+    defer gpa.free(source);
+
+    var cg = CodeGen.init(gpa, source);
+    defer cg.deinit();
+
+    var program = cg.genProgram() catch |e| switch (e) {
+        error.OutOfMemory => return e,
+        error.InvalidSyntax => {
+            const stderr = std.io.getStdErr();
+            const writer = stderr.writer();
+            const config = std.io.tty.detectConfig(stderr);
+            try config.setColor(writer, .reset);
+            try config.setColor(writer, .bold);
+            const line = std.mem.count(u8, source[0..cg.error_info.?.source_range.start], &.{'\n'}) + 1;
+            const line_start = if (std.mem.lastIndexOfScalar(u8, source[0..cg.error_info.?.source_range.start], '\n')) |nl_index| nl_index + 1 else 0;
+            try writer.print("{s}:{}:{}: ", .{ file_path, line, cg.error_info.?.source_range.start - line_start + 1 });
+            try config.setColor(writer, .reset);
+            try cg.formatError(config, writer);
+            const line_end = if (std.mem.indexOfScalarPos(u8, source, cg.error_info.?.source_range.end, '\n')) |nl_index| nl_index else source.len;
+            try writer.print("\n{s}\n", .{source[line_start..line_end]});
+            try writer.writeByteNTimes(' ', cg.error_info.?.source_range.start - line_start);
+            try config.setColor(writer, .bold);
+            try config.setColor(writer, .green);
+            try writer.writeByte('^');
+            try writer.writeByteNTimes('~', cg.error_info.?.source_range.end - cg.error_info.?.source_range.start -| 1);
+            try writer.writeByte('\n');
+            try config.setColor(writer, .reset);
+            return;
+        },
+    };
+    defer program.deinit();
+
+    var vm = try Vm.init(cg);
+    defer vm.deinit();
+    const result = vm.execute(&program) catch |e| switch (e) {
+        error.OutOfMemory => return e,
+        error.ExceptionThrown => {
+            const stderr = std.io.getStdErr();
+            const writer = stderr.writer();
+            const config = std.io.tty.detectConfig(stderr);
+            try config.setColor(writer, .bold);
+            try config.setColor(writer, .red);
+            try writer.writeAll("error: ");
+            try config.setColor(writer, .reset);
+            try config.setColor(writer, .bold);
+            try writer.print("{s}\n", .{vm.exception.?});
+            try config.setColor(writer, .reset);
+            for (vm.stack_trace.items, 0..) |index, i| {
+                const is_lambda = i != vm.stack_trace.items.len - 1;
+                var tokenizer: xlang.Tokenizer = .{ .source = source, .index = index };
+                tokenizer.next();
+                if (tokenizer.token == .@"(") {
+                    var open: usize = 1;
+                    while (open > 0) {
+                        tokenizer.next();
+                        switch (tokenizer.token) {
+                            .@"(" => open += 1,
+                            .@")" => open -= 1,
+                            else => {},
+                        }
+                    }
+                }
+                const line = std.mem.count(u8, source[0..tokenizer.start], &.{'\n'}) + 1;
+                const line_start = if (std.mem.lastIndexOfScalar(u8, source[0..index], '\n')) |nl_index| nl_index + 1 else 0;
+                try config.setColor(writer, .bold);
+                try writer.print("{s}:{}:{}", .{ file_path, line, index - line_start + 1 });
+                try config.setColor(writer, .reset);
+                try writer.writeAll(if (is_lambda) " in lambda:\n" else " in main:\n");
+                const line_end = if (std.mem.indexOfScalarPos(u8, source, tokenizer.index, '\n')) |nl_index| nl_index else source.len;
+                try writer.print("{s}\n", .{source[line_start..line_end]});
+                try writer.writeByteNTimes(' ', index - line_start);
+                try config.setColor(writer, .bold);
+                try config.setColor(writer, .green);
+                try writer.writeByte('^');
+                try writer.writeByteNTimes('~', tokenizer.index - index -| 1);
+                try writer.writeByte('\n');
+                try config.setColor(writer, .reset);
+            }
+            return;
+        },
+    };
+
+    const stdout = std.io.getStdOut();
+    if (result != .empty) {
+        try stdout.writer().print("{}\n", .{result});
+    }
+}

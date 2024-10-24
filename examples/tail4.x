@@ -1,0 +1,17 @@
+(define a
+    (lambda (x y)
+        (b (+ 1 x) (- y 1))
+    )
+)
+(define b
+    (lambda (x y)
+        (if (> (+ x y) 500012)
+            (+ x y)
+            (if (< y 0)
+                (+ x y)
+                (a (+ 1 x) y)
+            )
+        )
+    )
+)
+(a 0 (/ 500012 2))
