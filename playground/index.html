@@ -427,11 +427,8 @@
           for (const [name, base64] of entries) {
             const anchor = document.createElement("a");
             anchor.textContent = name;
-            anchor.href = `http://${window.location.host}#${base64}`;
+            anchor.href = `#${base64}`;
             anchor.addEventListener("click", (e) => {
-              e.preventDefault();
-              window.location.hash = base64;
-              editor.setValue(atob(location.hash.slice(1)));
               examplesDialog.close();
             });
             examplesList.appendChild(anchor);
