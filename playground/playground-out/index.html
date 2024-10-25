@@ -211,7 +211,7 @@
         paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor/min/vs" },
       });
 
-      const worker = new Worker("worker.js");
+      let worker = new Worker("worker.js");
       const runBtn = document.getElementById("run-btn");
       const examplesBtn = document.getElementById("examples-btn");
       const examplesDialog = document.getElementById("examples");
@@ -357,15 +357,19 @@
           });
 
           term.clear();
-          term.write(`${blue("$")} xlang main.x\r\n`);
+          term.write(`\r\x1b[K${blue("$")} xlang main.x\r\n`);
           let start = performance.now();
           const interval = setInterval(() => {
-            const seconds = Math.ceil((performance.now() - start) / 1000);
+            const seconds = Math.round((performance.now() - start) / 1000);
             term.write(`\r\x1b[KExecution is taking a while. ${seconds}s`);
             if (seconds >= 15) {
               term.write(`\r\x1b[KExecution timed out after 15s.`);
+              worker.terminate();
+              worker = new Worker("worker.js");
+              waiting_execution = false;
+              clearInterval(interval);
             }
-          }, 800);
+          }, 500);
           const listener = (e) => {
             clearInterval(interval);
             const data = e.data;
