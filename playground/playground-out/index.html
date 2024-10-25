@@ -429,6 +429,7 @@
             anchor.textContent = name;
             anchor.href = `#${base64}`;
             anchor.addEventListener("click", (e) => {
+              editor.setValue(atob(base64));
               examplesDialog.close();
             });
             examplesList.appendChild(anchor);
