@@ -133,7 +133,7 @@ fn executeFallible() !*ExecutionInfo {
             try config.setColor(writer, .bold);
             try writer.print("{s}\r\n", .{vm.exception.?});
             try config.setColor(writer, .reset);
-            var start: isize = undefined;
+            var start: ?isize = null;
             var end: isize = undefined;
             for (vm.stack_trace.items, 0..) |index, i| {
                 const is_lambda = i != vm.stack_trace.items.len - 1;
@@ -150,8 +150,10 @@ fn executeFallible() !*ExecutionInfo {
                         }
                     }
                 }
-                start = @intCast(tokenizer.start);
-                end = @intCast(tokenizer.index);
+                if (start == null) {
+                    start = @intCast(tokenizer.start);
+                    end = @intCast(tokenizer.index);
+                }
                 const line = std.mem.count(u8, source.items[0..tokenizer.start], &.{'\n'}) + 1;
                 const line_start = if (std.mem.lastIndexOfScalar(u8, source.items[0..index], '\n')) |nl_index| nl_index + 1 else 0;
                 try config.setColor(writer, .bold);
@@ -172,7 +174,7 @@ fn executeFallible() !*ExecutionInfo {
                 .failed = true,
                 .message_ptr = error_message.items.ptr,
                 .message_len = error_message.items.len,
-                .start = start,
+                .start = start.?,
                 .end = end,
             };
             return &execution_info;
