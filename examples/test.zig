@@ -80,6 +80,12 @@ test "identity" {
     try expectResult(@embedFile("identity.x"), "42.0");
 }
 
+test "pair" {
+    try expectResult(@embedFile("pair1.x"), "(1.0 2.0)");
+    try expectResult(@embedFile("pair2.x"), "(1.0 2.0)");
+    try expectResult(@embedFile("pair3.x"), "(5.0 7.0)");
+}
+
 test "ref" {
     try expectResult(@embedFile("ref1.x"), "23904.0");
     try expectResult(@embedFile("ref2.x"), "23.0");

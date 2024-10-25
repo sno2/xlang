@@ -198,6 +198,69 @@ pub const Value = enum(u64) {
         }
     }
 
+    pub fn formatPretty(value: Value, config: std.io.tty.Config, writer: anytype) !void {
+        switch (value.getTag()) {
+            .boolean => {
+                try config.setColor(writer, .bright_blue);
+                try writer.print("{}", .{value});
+                try config.setColor(writer, .reset);
+            },
+            .number_i32, .number_f64 => {
+                try config.setColor(writer, .bright_green);
+                try writer.print("{}", .{value});
+                try config.setColor(writer, .reset);
+            },
+            .lambda => try writer.print("{}", .{value}),
+            .list => {
+                var cur = value.getPayload(.list);
+                try writer.writeAll("(");
+                var i: usize = 0;
+                while (cur != List.empty) {
+                    if (i != 0) {
+                        try writer.writeAll(" ");
+                    }
+                    i += 1;
+                    try cur.value.formatPretty(config, writer);
+                    cur = cur.next;
+                }
+                try writer.writeAll(")");
+            },
+            .pair => {
+                const pair = value.getPayload(.pair);
+                try writer.writeByte('(');
+                try pair.left.formatPretty(config, writer);
+                try writer.writeByte(' ');
+                try pair.right.formatPretty(config, writer);
+                try writer.writeByte(')');
+            },
+            .reference => {
+                const reference = value.getPayload(.reference);
+                try writer.writeByte('<');
+                try config.setColor(writer, .yellow);
+                try writer.writeAll("reference ");
+                try config.setColor(writer, .reset);
+                if (reference.is_free) {
+                    try config.setColor(writer, .bright_blue);
+                    try writer.writeAll("null");
+                } else {
+                    try config.setColor(writer, .bright_green);
+                    try writer.print("0x{x}", .{@intFromPtr(reference)});
+                }
+                try config.setColor(writer, .reset);
+                try writer.writeByte('>');
+            },
+            .empty => {
+                if (!build_options.java_compat) {
+                    try writer.writeByte('<');
+                    try config.setColor(writer, .yellow);
+                    try writer.writeAll("empty");
+                    try config.setColor(writer, .reset);
+                    try writer.writeByte('>');
+                }
+            },
+        }
+    }
+
     pub fn from(value: anytype) Value {
         switch (@TypeOf(value)) {
             bool => return if (value) Value.boolean_true else .boolean_false,
@@ -368,6 +431,15 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) !Value {
                         });
                         try vm.stack.append(vm.gpa, Value.init(.lambda, lambda));
                     }
+                },
+                .push_pair => {
+                    const right = vm.stack.pop();
+                    const left = vm.stack.pop();
+                    const pair = try vm.heap.createObject(.pair, .{
+                        .left = left,
+                        .right = right,
+                    });
+                    vm.stack.appendAssumeCapacity(Value.init(.pair, pair));
                 },
                 .push_list, .push_list_u8 => {
                     var last = List.empty;

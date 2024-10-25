@@ -181,7 +181,8 @@ fn executeFallible() !*ExecutionInfo {
         },
     };
 
-    try stdout.writer(gpa).print("{}\n", .{result});
+    try result.formatPretty(.escape_codes, stdout.writer(gpa));
+    try stdout.append(gpa, '\n');
 
     execution_info = .{
         .failed = false,

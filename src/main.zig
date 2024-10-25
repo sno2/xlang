@@ -106,7 +106,6 @@ pub fn main() !void {
     };
 
     const stdout = std.io.getStdOut();
-    if (result != .empty) {
-        try stdout.writer().print("{}\n", .{result});
-    }
+    try result.formatPretty(std.io.tty.detectConfig(stdout), stdout.writer());
+    try stdout.writeAll("\n");
 }
