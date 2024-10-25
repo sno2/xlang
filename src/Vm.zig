@@ -23,6 +23,8 @@ constants: []const Value,
 lambdas: []const Executable,
 stack: std.ArrayListUnmanaged(Value),
 captures_start: usize,
+config: ?std.io.tty.Config = null,
+stdout: ?std.io.AnyWriter = null,
 call_stack: std.ArrayListUnmanaged(StackInfo) = .empty,
 cur: StackInfo = undefined,
 marked: std.DynamicBitSetUnmanaged = .{},
@@ -597,6 +599,17 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) !Value {
                         vm.stack.items[cur.stack_start + 1 ..][0..payload],
                     );
                     _ = vm.stack.pop();
+                },
+                .print => {
+                    const value = vm.stack.pop();
+                    value.formatPretty(vm.config.?, vm.stdout.?) catch |e| {
+                        if (e == error.OutOfMemory) return error.OutOfMemory;
+                        try vm.throwException("failed to print value ({})", .{e});
+                    };
+                    vm.stdout.?.writeAll("\r\n") catch |e| {
+                        if (e == error.OutOfMemory) return error.OutOfMemory;
+                        try vm.throwException("failed to print value ({})", .{e});
+                    };
                 },
             }
             continue :insn @enumFromInt(cur.exe.bytecode.items[cur.index]);

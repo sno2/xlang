@@ -440,7 +440,12 @@ fn genDefine(cg: *CodeGen, exe: *Executable) !void {
     _ = try cg.expectToken(.@")");
 }
 
-pub fn genProgram(cg: *CodeGen) Error!Executable {
+pub const Mode = enum(u8) {
+    program,
+    repl_like,
+};
+
+pub fn genProgram(cg: *CodeGen, mode: Mode) Error!Executable {
     var exe: Executable = .{
         .cg = cg,
         .arguments = 0,
@@ -472,13 +477,21 @@ pub fn genProgram(cg: *CodeGen) Error!Executable {
         }
 
         try cg.genExpression(&exe, false);
-        if (cg.tokenizer.token != .eof) {
-            try cg.fail(.{
-                .source_range = cg.tokenizer.tokenRange(),
-                .data = .{ .expected_token = .{ .expected = .eof, .got = cg.tokenizer.token } },
-            });
+        switch (mode) {
+            .program => {
+                if (cg.tokenizer.token != .eof) {
+                    try cg.fail(.{
+                        .source_range = cg.tokenizer.tokenRange(),
+                        .data = .{ .expected_token = .{ .expected = .eof, .got = cg.tokenizer.token } },
+                    });
+                }
+                break;
+            },
+            .repl_like => {
+                if (cg.tokenizer.token == .eof) break;
+                try exe.emit(.print, {}, null);
+            },
         }
-        break;
     }
     try exe.emit(.@"return", {}, null);
     return exe;

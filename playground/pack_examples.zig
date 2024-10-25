@@ -21,7 +21,7 @@ pub fn main() !void {
             const file = try examples_dir.openFile(entry.name, .{});
             const bytes = try file.readToEndAlloc(gpa, 4096);
             var enc = std.base64.standard.Encoder;
-            try json.writer().print("\"{s}\":\"", .{entry.name});
+            try json.writer().print("\"{s}\":\"1", .{entry.name});
             const len = enc.calcSize(bytes.len);
             try json.ensureUnusedCapacity(len);
             json.items.len += len;

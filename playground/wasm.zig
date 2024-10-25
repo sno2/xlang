@@ -30,7 +30,7 @@ var exe_before = false;
 var exe: Executable = undefined;
 var error_message: std.ArrayListUnmanaged(u8) = .empty;
 
-export fn codeGen() ?*CgInfo {
+export fn codeGen(is_program: bool) ?*CgInfo {
     if (cg_before) {
         cg.deinit();
         error_message.clearRetainingCapacity();
@@ -38,7 +38,7 @@ export fn codeGen() ?*CgInfo {
     cg_before = true;
 
     cg = CodeGen.init(gpa, source.items[0 .. source.items.len - 1 :0]);
-    exe = cg.genProgram() catch |e| switch (e) {
+    exe = cg.genProgram(if (is_program) .program else .repl_like) catch |e| switch (e) {
         error.OutOfMemory => unreachable,
         error.InvalidSyntax => {
             exe_before = false;
@@ -83,7 +83,6 @@ const ExecutionInfo = extern struct {
 var execution_info: ExecutionInfo = undefined;
 var vm: Vm = undefined;
 var vm_ran: bool = false;
-var stdout: std.ArrayListUnmanaged(u8) = .empty;
 
 export fn execute() *ExecutionInfo {
     return executeFallible() catch {
@@ -115,15 +114,16 @@ fn executeFallible() !*ExecutionInfo {
 
     if (vm_ran) {
         vm.deinit();
-        stdout.clearRetainingCapacity();
+        error_message.clearRetainingCapacity();
     }
     vm_ran = true;
 
     vm = try Vm.init(cg);
+    vm.config = .escape_codes;
+    vm.stdout = error_message.writer(gpa).any();
     const result = vm.execute(&exe) catch |e| switch (e) {
         error.OutOfMemory => return error.OutOfMemory,
         error.ExceptionThrown => {
-            error_message.clearRetainingCapacity();
             const writer = error_message.writer(gpa);
             const config: std.io.tty.Config = .escape_codes;
             try config.setColor(writer, .bold);
@@ -181,13 +181,13 @@ fn executeFallible() !*ExecutionInfo {
         },
     };
 
-    try result.formatPretty(.escape_codes, stdout.writer(gpa));
-    try stdout.append(gpa, '\n');
+    try result.formatPretty(.escape_codes, error_message.writer(gpa));
+    try error_message.appendSlice(gpa, "\r\n");
 
     execution_info = .{
         .failed = false,
-        .message_ptr = stdout.items.ptr,
-        .message_len = stdout.items.len,
+        .message_ptr = error_message.items.ptr,
+        .message_len = error_message.items.len,
         .start = undefined,
         .end = undefined,
     };

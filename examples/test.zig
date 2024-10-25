@@ -48,7 +48,7 @@ fn expectResult(source: [:0]const u8, expected: []const u8) !void {
     var cg = xlang.CodeGen.init(gpa, source);
     defer cg.deinit();
 
-    var program = try cg.genProgram();
+    var program = try cg.genProgram(.program);
     defer program.deinit();
 
     var vm = try xlang.Vm.init(cg);

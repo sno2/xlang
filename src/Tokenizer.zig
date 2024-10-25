@@ -20,6 +20,7 @@ source: [:0]const u8,
 token: Token = undefined,
 start: usize = 0,
 index: usize = 0,
+last_end: usize = 0,
 seen_comment: bool = false,
 
 pub const ByteOffset = u32;
@@ -100,6 +101,7 @@ const State = enum {
 
 pub fn next(self: *Tokenizer) void {
     self.seen_comment = false;
+    self.last_end = self.index;
     self.token = state: switch (State.init) {
         .init => {
             self.start = self.index;

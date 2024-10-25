@@ -18,6 +18,8 @@ pub fn main() !void {
         std.process.fatal("expected a file path argument", .{});
     }
 
+    const is_program = if (args.len >= 3) !std.mem.eql(u8, args[2], "--repl-like") else true;
+
     const file_path = args[1];
     const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
@@ -28,7 +30,7 @@ pub fn main() !void {
     var cg = CodeGen.init(gpa, source);
     defer cg.deinit();
 
-    var program = cg.genProgram() catch |e| switch (e) {
+    var program = cg.genProgram(if (is_program) .program else .repl_like) catch |e| switch (e) {
         error.OutOfMemory => return e,
         error.InvalidSyntax => {
             const stderr = std.io.getStdErr();
@@ -55,14 +57,20 @@ pub fn main() !void {
     };
     defer program.deinit();
 
+    const stdout = std.io.getStdOut();
+    const config = std.io.tty.detectConfig(stdout);
+
     var vm = try Vm.init(cg);
+    if (!is_program) {
+        vm.config = config;
+        vm.stdout = std.io.getStdOut().writer().any();
+    }
     defer vm.deinit();
     const result = vm.execute(&program) catch |e| switch (e) {
         error.OutOfMemory => return e,
         error.ExceptionThrown => {
             const stderr = std.io.getStdErr();
             const writer = stderr.writer();
-            const config = std.io.tty.detectConfig(stderr);
             try config.setColor(writer, .bold);
             try config.setColor(writer, .red);
             try writer.writeAll("error: ");
@@ -105,7 +113,6 @@ pub fn main() !void {
         },
     };
 
-    const stdout = std.io.getStdOut();
-    try result.formatPretty(std.io.tty.detectConfig(stdout), stdout.writer());
+    try result.formatPretty(config, stdout.writer());
     try stdout.writeAll("\n");
 }
