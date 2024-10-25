@@ -47,7 +47,8 @@
         border-bottom: rgba(255, 255, 255, 0.2) 1px solid;
       }
 
-      button {
+      button,
+      select {
         outline: none;
         font-family: inherit;
         font-size: inherit;
@@ -55,11 +56,29 @@
         cursor: pointer;
       }
 
-      header button {
+      header button,
+      header span {
         padding: 0.6rem 1rem;
         border-radius: 4px;
         font-weight: 500;
         font-size: 0.9rem;
+      }
+
+      button select option {
+        cursor: pointer;
+      }
+
+      header select {
+        background: transparent;
+        color: #fff;
+        padding: 0.6rem 0.25rem;
+      }
+
+      header span {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: border ease 100ms;
+        display: inline-block;
+        padding: 0 0.5rem;
       }
 
       #examples-btn {
@@ -69,8 +88,16 @@
         transition: border ease 100ms;
       }
 
-      #examples-btn:hover {
+      #examples-btn:hover,
+      header span:hover,
+      header span:focus-within {
         border: 1px solid rgba(255, 255, 255, 0.6);
+      }
+
+      header select option {
+        background: #222;
+        color: #fff;
+        font-family: inherit;
       }
 
       #run-btn {
@@ -191,7 +218,14 @@
         <img src="/github-mark-white.png" alt="GitHub logo" />
         <h1>xlang playground</h1>
       </a>
+
       <div>
+        <span>
+          <select id="execution-mode" title="Execution mode">
+            <option value="1" title="One output">Program</option>
+            <option value="0" title="Many outputs">REPL-like</option>
+          </select>
+        </span>
         <button id="examples-btn">Examples</button>
         <button id="run-btn">Run code</button>
       </div>
@@ -226,6 +260,7 @@
       const examplesBtn = document.getElementById("examples-btn");
       const examplesDialog = document.getElementById("examples");
       const examplesList = document.getElementById("examples-list");
+      const executionMode = document.getElementById("execution-mode");
 
       const term = new Terminal({
         fontSize: 16.5,
@@ -345,8 +380,17 @@
           }
         );
 
+        const loadProgram = () => {
+          try {
+            executionMode.value = location.hash[1];
+            editor.setValue(atob(location.hash.slice(2)));
+          } catch (e) {
+            window.location.hash = "";
+          }
+        };
+
         if (window.location.hash) {
-          editor.setValue(atob(location.hash.slice(1)));
+          loadProgram();
         }
 
         theme.then((data) => {
@@ -400,11 +444,13 @@
           worker.postMessage({
             type: "codegen",
             source,
+            mode: executionMode.value,
           });
         };
 
         editor.onDidChangeModelContent(codeGen);
         codeGen();
+        executionMode.addEventListener("input", codeGen);
 
         let waiting_execution = false;
         const execute = () => {
@@ -412,7 +458,7 @@
             return;
           }
           waiting_execution = true;
-          location.hash = btoa(editor.getValue());
+          location.hash = `${executionMode.value}${btoa(editor.getValue())}`;
 
           worker.postMessage({
             type: "execute",
@@ -481,7 +527,7 @@
             anchor.textContent = name;
             anchor.href = `#${base64}`;
             anchor.addEventListener("click", (e) => {
-              editor.setValue(atob(base64));
+              loadProgram();
               examplesDialog.close();
             });
             examplesList.appendChild(anchor);
