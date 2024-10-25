@@ -94,7 +94,6 @@ const State = enum {
     @">",
     @"/",
     @"-",
-    null,
     comment_continue,
 };
 
@@ -172,13 +171,6 @@ pub fn next(self: *Tokenizer) void {
             else => {
                 break :state keyword_map.get(self.tokenSource()) orelse .identifier;
             },
-        },
-        .null => switch (self.source[self.index]) {
-            '?' => {
-                self.index += 1;
-                break :state .@"null?";
-            },
-            else => break :state .invalid,
         },
         .number_i32_continue => switch (self.source[self.index]) {
             '0'...'9' => {
