@@ -271,7 +271,59 @@
         }
       });
 
+      const config = {
+        comments: {
+          lineComment: "//",
+        },
+        brackets: [["(", ")"]],
+        autoClosingPairs: [{ open: "(", close: ")" }],
+        surroundingPairs: [{ open: "(", close: ")" }],
+      };
+
+      const language = {
+        defaultToken: "",
+        ignoreCase: false,
+        tokenPostfix: ".x",
+        brackets: [{ open: "(", close: ")", token: "delimiter.parenthesis" }],
+        keywords: [
+          "if",
+          "define",
+          "let",
+          "lambda",
+          "list",
+          "cons",
+          "car",
+          "cdr",
+          "ref",
+          "free",
+          "deref",
+        ],
+        tokenizer: {
+          root: [
+            [/[ \t\r\n]+/, "white"],
+            [/\/\/.*$/, "number"],
+            [/-?(?:\d+\.\d*|\.\d+|\d+)/, "number.float"],
+            [/#[tf]\b/, "constant"],
+            [/[+\-*/<>=]/, "keyword.operator"],
+            [/\bnull\?/, "keyword.operator"],
+            [/\bset!/, "keyword.operator"],
+            [
+              /\b[a-zA-Z_$][a-zA-Z0-9_$]*\b/,
+              {
+                cases: {
+                  "@keywords": "keyword",
+                  "@default": "identifier",
+                },
+              },
+            ],
+          ],
+        },
+      };
+
       require(["vs/editor/editor.main"], () => {
+        monaco.languages.register({ id: "x" });
+        monaco.languages.setMonarchTokensProvider("x", language);
+        monaco.languages.setLanguageConfiguration("x", config);
         const editor = monaco.editor.create(
           document.getElementById("container"),
           {
@@ -280,7 +332,7 @@
 )
 (add 2 3)
 `,
-            language: "scheme",
+            language: "x",
             theme: "vs-dark",
             fontSize: 16.5,
             fontFamily: "'Roboto Mono', monospace",
