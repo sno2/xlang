@@ -53,7 +53,7 @@ pub const Object = extern union {
 };
 
 pub const FreeRange = extern struct {
-    head: Object.Head align(8) = .{ .tag = .free_range, .is_marked = false },
+    head: Object.Head align(@sizeOf(Object.Head)) = .{ .tag = .free_range, .is_marked = false },
     len: usize,
     next: ?*FreeRange,
 
@@ -63,7 +63,7 @@ pub const FreeRange = extern struct {
 };
 
 pub const Pair = extern struct {
-    head: Object.Head align(8) = .{ .tag = .pair, .is_marked = false },
+    head: Object.Head align(@sizeOf(Object.Head)) = .{ .tag = .pair, .is_marked = false },
     left: Value,
     right: Value,
 
@@ -73,7 +73,7 @@ pub const Pair = extern struct {
 };
 
 pub const List = extern struct {
-    head: Object.Head align(8) = .{ .tag = .list, .is_marked = false },
+    head: Object.Head align(@sizeOf(Object.Head)) = .{ .tag = .list, .is_marked = false },
     value: Value,
     next: *List,
 
@@ -89,13 +89,13 @@ pub const List = extern struct {
 };
 
 pub const Reference = extern struct {
-    head: Object.Head align(8) = .{ .tag = .reference, .is_marked = false },
+    head: Object.Head align(@sizeOf(Object.Head)) = .{ .tag = .reference, .is_marked = false },
     value: Value,
     is_free: bool = false,
 };
 
 pub const Lambda = extern struct {
-    head: Object.Head align(8) = .{ .tag = .lambda, .is_marked = false },
+    head: Object.Head align(@sizeOf(Object.Head)) = .{ .tag = .lambda, .is_marked = false },
     executable: *const Executable,
     captures: ?[*]Value,
 };
