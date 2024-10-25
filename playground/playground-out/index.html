@@ -380,17 +380,13 @@
           }
         );
 
-        const loadProgram = () => {
-          try {
-            executionMode.value = location.hash[1];
-            editor.setValue(atob(location.hash.slice(2)));
-          } catch (e) {
-            window.location.hash = "";
-          }
+        const loadProgram = (hash) => {
+          executionMode.value = hash[0];
+          editor.setValue(atob(hash.slice(1)));
         };
 
-        if (window.location.hash) {
-          loadProgram();
+        if (location.hash) {
+          loadProgram(location.hash.slice(1));
         }
 
         theme.then((data) => {
@@ -527,7 +523,7 @@
             anchor.textContent = name;
             anchor.href = `#${base64}`;
             anchor.addEventListener("click", (e) => {
-              loadProgram();
+              loadProgram(base64);
               examplesDialog.close();
             });
             examplesList.appendChild(anchor);
