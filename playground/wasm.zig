@@ -106,8 +106,8 @@ fn executeFallible() !*ExecutionInfo {
             .failed = true,
             .message_ptr = error_message.items.ptr,
             .message_len = error_message.items.len,
-            .start = -1,
-            .end = -1,
+            .start = @intCast(cg_info.start),
+            .end = @intCast(cg_info.end),
         };
         return &execution_info;
     }
