@@ -364,13 +364,6 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                     }
                     try exe.emit(.push_list, item_count, null);
                 },
-                .pair => {
-                    cg.tokenizer.next();
-                    try cg.genExpression(exe, false);
-                    try cg.genExpression(exe, false);
-                    try exe.emit(.push_pair, {}, null);
-                    _ = try cg.expectToken(.@")");
-                },
                 .cons => {
                     const hint = cg.tokenizer.start;
                     cg.tokenizer.next();

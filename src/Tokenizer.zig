@@ -8,7 +8,6 @@ const keyword_map = std.StaticStringMap(Token).initComptime(.{
     .{ "define", .define },
     .{ "lambda", .lambda },
     .{ "list", .list },
-    .{ "pair", .pair },
     .{ "cons", .cons },
     .{ "car", .car },
     .{ "cdr", .cdr },

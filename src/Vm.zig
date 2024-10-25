@@ -432,15 +432,6 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) !Value {
                         try vm.stack.append(vm.gpa, Value.init(.lambda, lambda));
                     }
                 },
-                .push_pair => {
-                    const right = vm.stack.pop();
-                    const left = vm.stack.pop();
-                    const pair = try vm.heap.createObject(.pair, .{
-                        .left = left,
-                        .right = right,
-                    });
-                    vm.stack.appendAssumeCapacity(Value.init(.pair, pair));
-                },
                 .push_list, .push_list_u8 => {
                     var last = List.empty;
                     var i = vm.stack.items.len;

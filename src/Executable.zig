@@ -61,7 +61,6 @@ pub const Instruction = union(enum(u8)) {
     jump: u16,
     jump_if_not: u16,
     push_lambda: u16,
-    push_pair,
     push_list: u16,
     push_list_u8: u8,
     cons,

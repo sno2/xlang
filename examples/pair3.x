@@ -1,1 +1,1 @@
-(cdr (pair (pair 1 2) (pair 5 7)))
+(cdr (cons (cons 1 2) (cons 5 7)))
