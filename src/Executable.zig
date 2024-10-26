@@ -76,7 +76,7 @@ pub const Instruction = union(enum(u8)) {
     deref,
     set,
     @"return",
-    print,
+    push_result,
 
     pub const Tag = std.meta.Tag(Instruction);
 };

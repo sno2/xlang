@@ -28,12 +28,12 @@ var cg_before = false;
 var cg: CodeGen = undefined;
 var exe_before = false;
 var exe: Executable = undefined;
-var error_message: std.ArrayListUnmanaged(u8) = .empty;
+var output: std.ArrayListUnmanaged(u8) = .empty;
 
 export fn codeGen(is_program: bool) ?*CgInfo {
     if (cg_before) {
         cg.deinit();
-        error_message.clearRetainingCapacity();
+        output.clearRetainingCapacity();
     }
     cg_before = true;
 
@@ -43,7 +43,7 @@ export fn codeGen(is_program: bool) ?*CgInfo {
         error.InvalidSyntax => {
             exe_before = false;
             const config: std.io.tty.Config = .escape_codes;
-            const writer = error_message.writer(cg.gpa);
+            const writer = output.writer(cg.gpa);
             config.setColor(writer, .reset) catch unreachable;
             config.setColor(writer, .bold) catch unreachable;
             const line = std.mem.count(u8, source.items[0..cg.error_info.?.source_range.start], &.{'\n'}) + 1;
@@ -61,8 +61,8 @@ export fn codeGen(is_program: bool) ?*CgInfo {
             writer.writeAll("\r\n") catch unreachable;
             config.setColor(writer, .reset) catch unreachable;
             cg_info = .{
-                .error_ptr = error_message.items.ptr,
-                .error_len = error_message.items.len,
+                .error_ptr = output.items.ptr,
+                .error_len = output.items.len,
                 .start = cg.tokenizer.start,
                 .end = cg.tokenizer.index,
             };
@@ -74,25 +74,40 @@ export fn codeGen(is_program: bool) ?*CgInfo {
 }
 
 const ExecutionInfo = extern struct {
-    failed: bool align(@sizeOf(usize)),
-    message_ptr: [*]const u8,
-    message_len: usize,
-    start: isize,
-    end: isize,
+    output_ptr: [*]const u8,
+    output_len: usize,
+    output_mappings_ptr: [*]OutputMappings,
+    output_mappings_len: usize,
+    exception_start: isize = -1,
+    exception_end: usize = undefined,
+    start: usize = undefined,
+    end: usize = undefined,
 };
 var execution_info: ExecutionInfo = undefined;
+var output_mappings: std.ArrayListUnmanaged(OutputMappings) = .empty;
 var vm: Vm = undefined;
 var vm_ran: bool = false;
+
+const OutputMappings = extern struct {
+    start: usize,
+    end: usize,
+    index: usize,
+
+    comptime {
+        if (@sizeOf(@This()) != @sizeOf(usize) * 3) {
+            @compileError("invalid");
+        }
+    }
+};
 
 export fn execute() *ExecutionInfo {
     return executeFallible() catch {
         const message = "error: Out of memory";
         execution_info = .{
-            .failed = true,
-            .message_ptr = message,
-            .message_len = message.len,
-            .start = -1,
-            .end = -1,
+            .output_ptr = message,
+            .output_len = message.len,
+            .output_mappings_ptr = output_mappings.items.ptr,
+            .output_mappings_len = 0,
         };
         return &execution_info;
     };
@@ -103,9 +118,12 @@ fn executeFallible() !*ExecutionInfo {
 
     if (!exe_before) {
         execution_info = .{
-            .failed = true,
-            .message_ptr = error_message.items.ptr,
-            .message_len = error_message.items.len,
+            .output_ptr = output.items.ptr,
+            .output_len = output.items.len,
+            .output_mappings_ptr = output_mappings.items.ptr,
+            .output_mappings_len = 0,
+            .exception_start = 0,
+            .exception_end = output.items.len,
             .start = @intCast(cg_info.start),
             .end = @intCast(cg_info.end),
         };
@@ -114,82 +132,92 @@ fn executeFallible() !*ExecutionInfo {
 
     if (vm_ran) {
         vm.deinit();
-        error_message.clearRetainingCapacity();
+        output.clearRetainingCapacity();
+        output_mappings.clearRetainingCapacity();
     }
     vm_ran = true;
 
     vm = try Vm.init(cg);
-    vm.config = .escape_codes;
-    vm.stdout = error_message.writer(gpa).any();
-    const result = vm.execute(&exe) catch |e| switch (e) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.ExceptionThrown => {
-            const writer = error_message.writer(gpa);
-            const config: std.io.tty.Config = .escape_codes;
-            try config.setColor(writer, .bold);
-            try config.setColor(writer, .red);
-            try writer.writeAll("error: ");
-            try config.setColor(writer, .reset);
-            try config.setColor(writer, .bold);
-            try writer.print("{s}\r\n", .{vm.exception.?});
-            try config.setColor(writer, .reset);
-            var start: ?isize = null;
-            var end: isize = undefined;
-            for (vm.stack_trace.items, 0..) |index, i| {
-                const is_lambda = i != vm.stack_trace.items.len - 1;
-                var tokenizer: xlang.Tokenizer = .{ .source = source.items[0 .. source.items.len - 1 :0], .index = index };
-                tokenizer.next();
-                if (tokenizer.token == .@"(") {
-                    var open: usize = 1;
-                    while (open > 0) {
-                        tokenizer.next();
-                        switch (tokenizer.token) {
-                            .@"(" => open += 1,
-                            .@")" => open -= 1,
-                            else => {},
-                        }
+    const results = try vm.execute(&exe);
+
+    for (results, cg.result_endings.items[0..results.len]) |result, index| {
+        const start = output.items.len;
+        try result.formatPretty(.escape_codes, output.writer(gpa));
+        try output_mappings.append(gpa, .{
+            .start = start,
+            .end = output.items.len,
+            .index = index,
+        });
+        try output.appendSlice(gpa, "\r\n");
+    }
+
+    if (vm.exception) |exception| {
+        const writer = output.writer(gpa);
+        const config: std.io.tty.Config = .escape_codes;
+        try config.setColor(writer, .bold);
+        try config.setColor(writer, .red);
+        try writer.writeAll("error: ");
+        try config.setColor(writer, .reset);
+        try config.setColor(writer, .bold);
+        const exception_start = output.items.len;
+        try writer.print("{s}\r\n", .{exception});
+        const exception_end = output.items.len;
+        try config.setColor(writer, .reset);
+        var start: ?usize = null;
+        var end: usize = undefined;
+        for (vm.stack_trace.items, 0..) |index, i| {
+            const is_lambda = i != vm.stack_trace.items.len - 1;
+            var tokenizer: xlang.Tokenizer = .{ .source = source.items[0 .. source.items.len - 1 :0], .index = index };
+            tokenizer.next();
+            if (tokenizer.token == .@"(") {
+                var open: usize = 1;
+                while (open > 0) {
+                    tokenizer.next();
+                    switch (tokenizer.token) {
+                        .@"(" => open += 1,
+                        .@")" => open -= 1,
+                        else => {},
                     }
                 }
-                if (start == null) {
-                    start = @intCast(tokenizer.start);
-                    end = @intCast(tokenizer.index);
-                }
-                const line = std.mem.count(u8, source.items[0..tokenizer.start], &.{'\n'}) + 1;
-                const line_start = if (std.mem.lastIndexOfScalar(u8, source.items[0..index], '\n')) |nl_index| nl_index + 1 else 0;
-                try config.setColor(writer, .bold);
-                try writer.print("main.x:{}:{}", .{ line, index - line_start + 1 });
-                try config.setColor(writer, .reset);
-                try writer.writeAll(if (is_lambda) " in lambda:\r\n" else " in main:\r\n");
-                const line_end = if (std.mem.indexOfScalarPos(u8, source.items, tokenizer.index, '\n')) |nl_index| nl_index else source.items.len;
-                try writer.print("{s}\r\n", .{source.items[line_start..line_end]});
-                try writer.writeByteNTimes(' ', index - line_start);
-                try config.setColor(writer, .bold);
-                try config.setColor(writer, .green);
-                try writer.writeByte('^');
-                try writer.writeByteNTimes('~', tokenizer.index - index -| 1);
-                try writer.writeAll("\r\n");
-                try config.setColor(writer, .reset);
             }
-            execution_info = .{
-                .failed = true,
-                .message_ptr = error_message.items.ptr,
-                .message_len = error_message.items.len,
-                .start = start.?,
-                .end = end,
-            };
-            return &execution_info;
-        },
-    };
-
-    try result.formatPretty(.escape_codes, error_message.writer(gpa));
-    try error_message.appendSlice(gpa, "\r\n");
+            if (start == null) {
+                start = tokenizer.start;
+                end = tokenizer.index;
+            }
+            const line = std.mem.count(u8, source.items[0..tokenizer.start], &.{'\n'}) + 1;
+            const line_start = if (std.mem.lastIndexOfScalar(u8, source.items[0..index], '\n')) |nl_index| nl_index + 1 else 0;
+            try config.setColor(writer, .bold);
+            try writer.print("main.x:{}:{}", .{ line, index - line_start + 1 });
+            try config.setColor(writer, .reset);
+            try writer.writeAll(if (is_lambda) " in lambda:\r\n" else " in main:\r\n");
+            const line_end = if (std.mem.indexOfScalarPos(u8, source.items, tokenizer.index, '\n')) |nl_index| nl_index else source.items.len;
+            try writer.print("{s}\r\n", .{source.items[line_start..line_end]});
+            try writer.writeByteNTimes(' ', index - line_start);
+            try config.setColor(writer, .bold);
+            try config.setColor(writer, .green);
+            try writer.writeByte('^');
+            try writer.writeByteNTimes('~', tokenizer.index - index -| 1);
+            try writer.writeAll("\r\n");
+            try config.setColor(writer, .reset);
+        }
+        execution_info = .{
+            .output_ptr = output.items.ptr,
+            .output_len = output.items.len,
+            .output_mappings_ptr = output_mappings.items.ptr,
+            .output_mappings_len = output_mappings.items.len,
+            .exception_start = @intCast(exception_start),
+            .exception_end = exception_end,
+            .start = start.?,
+            .end = end,
+        };
+        return &execution_info;
+    }
 
     execution_info = .{
-        .failed = false,
-        .message_ptr = error_message.items.ptr,
-        .message_len = error_message.items.len,
-        .start = undefined,
-        .end = undefined,
+        .output_ptr = output.items.ptr,
+        .output_len = output.items.len,
+        .output_mappings_ptr = output_mappings.items.ptr,
+        .output_mappings_len = output_mappings.items.len,
     };
     return &execution_info;
 }

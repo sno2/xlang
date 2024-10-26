@@ -54,11 +54,11 @@ fn expectResult(source: [:0]const u8, expected: []const u8) !void {
     var vm = try xlang.Vm.init(cg);
     defer vm.deinit();
 
-    const result = try vm.execute(&program);
+    const results = try vm.execute(&program);
 
     var out: std.ArrayListUnmanaged(u8) = .empty;
     defer out.deinit(gpa);
-    try out.writer(gpa).print("{}", .{result});
+    try out.writer(gpa).print("{}", .{results[0]});
 
     try std.testing.expectEqualStrings(expected, out.items);
 }
@@ -99,7 +99,7 @@ test "roman" {
 
 test "overflow" {
     if (is_java) return error.SkipZigTest; // overflows when parsing
-    try expectResult(@embedFile("overflow.x"), "");
+    try expectResult(@embedFile("overflow.x"), "-1");
 }
 
 test "let" {

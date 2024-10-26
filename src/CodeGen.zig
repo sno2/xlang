@@ -13,6 +13,8 @@ const CodeGen = @This();
 
 gpa: std.mem.Allocator,
 tokenizer: Tokenizer,
+results: usize = 0,
+result_endings: std.ArrayListUnmanaged(u32) = .empty,
 constants: std.ArrayListUnmanaged(Value) = .empty,
 defines: std.StringArrayHashMapUnmanaged(void) = .empty,
 captures_count: u16 = 0,
@@ -57,6 +59,7 @@ pub fn reset(cg: *CodeGen) !void {
 }
 
 pub fn deinit(cg: *CodeGen) void {
+    cg.result_endings.deinit(cg.gpa);
     cg.constants.deinit(cg.gpa);
     cg.captures.deinit(cg.gpa);
     cg.defines.deinit(cg.gpa);
@@ -472,13 +475,19 @@ pub fn genProgram(cg: *CodeGen, mode: Mode) Error!Executable {
         }
 
         if (cg.tokenizer.token == .eof) {
-            try exe.emitConstant(.empty, null);
+            if (mode == .program) {
+                cg.results += 1;
+                try exe.emitConstant(.empty, null);
+                try cg.result_endings.append(cg.gpa, @intCast(cg.tokenizer.last_end));
+            }
             break;
         }
 
         try cg.genExpression(&exe, false);
+        try cg.result_endings.append(cg.gpa, @intCast(cg.tokenizer.last_end));
         switch (mode) {
             .program => {
+                cg.results += 1;
                 if (cg.tokenizer.token != .eof) {
                     try cg.fail(.{
                         .source_range = cg.tokenizer.tokenRange(),
@@ -488,8 +497,9 @@ pub fn genProgram(cg: *CodeGen, mode: Mode) Error!Executable {
                 break;
             },
             .repl_like => {
+                cg.results += 1;
+                try exe.emit(.push_result, {}, null);
                 if (cg.tokenizer.token == .eof) break;
-                try exe.emit(.print, {}, null);
             },
         }
     }

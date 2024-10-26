@@ -23,8 +23,8 @@ constants: []const Value,
 lambdas: []const Executable,
 stack: std.ArrayListUnmanaged(Value),
 captures_start: usize,
-config: ?std.io.tty.Config = null,
-stdout: ?std.io.AnyWriter = null,
+results: usize,
+results_pushed: usize = 0,
 call_stack: std.ArrayListUnmanaged(StackInfo) = .empty,
 cur: StackInfo = undefined,
 marked: std.DynamicBitSetUnmanaged = .{},
@@ -46,6 +46,7 @@ pub fn init(cg: CodeGen) !Vm {
         .lambdas = cg.lambdas.items,
         .stack = .empty,
         .captures_start = cg.defines.count(),
+        .results = cg.results,
     };
     try vm.resize(cg.defines.count() + cg.captures_count);
     return vm;
@@ -325,27 +326,28 @@ fn applyBinaryOperator(vm: *Vm, comptime operator: Instruction.Tag, left: Value,
     });
 }
 
-pub fn execute(vm: *Vm, program: *const Executable) !Value {
+pub fn execute(vm: *Vm, program: *const Executable) std.mem.Allocator.Error![]Value {
     vm.cur = .{
         .exe = program,
         .index = 0,
         .stack_start = vm.stack.items.len,
         .lambda = null,
     };
+    const start_results = vm.cur.stack_start + vm.cur.exe.local_count;
     return vm.executeInner(&vm.cur, program) catch |e| switch (e) {
+        error.OutOfMemory => return error.OutOfMemory,
         error.ExceptionThrown => {
             try vm.stack_trace.ensureUnusedCapacity(vm.gpa, 1 + vm.call_stack.items.len);
             vm.stack_trace.appendAssumeCapacity(vm.cur.exe.source_mapping.items[vm.cur.index -| 1]);
             while (vm.call_stack.popOrNull()) |entry| {
                 vm.stack_trace.appendAssumeCapacity(entry.exe.source_mapping.items[entry.index -| 1]);
             }
-            return error.ExceptionThrown;
+            return vm.stack.items[start_results..][0..vm.results_pushed];
         },
-        else => e,
     };
 }
 
-fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) !Value {
+fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
     try vm.resize(vm.stack.items.len + program.local_count);
     insn: switch (@as(Instruction.Tag, @enumFromInt(cur.exe.bytecode.items[cur.index]))) {
         inline else => |tag| {
@@ -600,21 +602,13 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) !Value {
                     );
                     _ = vm.stack.pop();
                 },
-                .print => {
-                    const value = vm.stack.pop();
-                    value.formatPretty(vm.config.?, vm.stdout.?) catch |e| {
-                        if (e == error.OutOfMemory) return error.OutOfMemory;
-                        try vm.throwException("failed to print value ({})", .{e});
-                    };
-                    vm.stdout.?.writeAll("\r\n") catch |e| {
-                        if (e == error.OutOfMemory) return error.OutOfMemory;
-                        try vm.throwException("failed to print value ({})", .{e});
-                    };
+                .push_result => {
+                    vm.results_pushed += 1;
                 },
             }
             continue :insn @enumFromInt(cur.exe.bytecode.items[cur.index]);
         },
     }
-    std.debug.assert(vm.stack.items.len == cur.stack_start + program.local_count + 1);
-    return vm.stack.pop();
+    std.debug.assert(vm.stack.items.len == cur.stack_start + program.local_count + vm.results);
+    return vm.stack.items[vm.stack.items.len - vm.results ..];
 }
