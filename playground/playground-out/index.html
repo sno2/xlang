@@ -444,7 +444,20 @@
           });
         };
 
-        editor.onDidChangeModelContent(codeGen);
+        let inlayHints = [];
+        monaco.languages.registerInlayHintsProvider("x", {
+          provideInlayHints: (model, range) => {
+            return {
+              hints: inlayHints,
+              dispose: () => {},
+            };
+          },
+        });
+
+        editor.onDidChangeModelContent(() => {
+          inlayHints.length = 0;
+          codeGen();
+        });
         codeGen();
         executionMode.addEventListener("input", codeGen);
 
@@ -454,14 +467,19 @@
             return;
           }
           waiting_execution = true;
-          location.hash = `${executionMode.value}${btoa(editor.getValue())}`;
+          const mode = executionMode.value;
+          location.hash = `${mode}${btoa(editor.getValue())}`;
 
           worker.postMessage({
             type: "execute",
           });
 
           term.clear();
-          term.write(`\r\x1b[K${blue("$")} xlang main.x\r\n`);
+          term.write(
+            `\r\x1b[K${blue("$")} xlang main.x${
+              mode !== "1" ? " --repl-like" : ""
+            }\r\n`
+          );
           let start = performance.now();
           const interval = setInterval(() => {
             const seconds = Math.round((performance.now() - start) / 1000);
@@ -480,15 +498,22 @@
             if (data.type === "execute") {
               waiting_execution = false;
 
-              if (data.exception && data.start !== -1) {
-                const model = editor.getModel();
-                const startPosition = model.getPositionAt(data.start);
-                const endPosition = model.getPositionAt(data.end);
-
+              const model = editor.getModel();
+              if (data.exception) {
                 const head = "error: [0m[1m";
-                const startI = data.exception.indexOf(head) + head.length;
-                const endI = startI + data.exception.slice(startI).indexOf("[0m");
+                let startI = data.exception.message.indexOf(head);
+                if (startI !== -1) {
+                  startI += head.length;
+                  const endI =
+                    startI + data.exception.message.slice(startI).indexOf("[0m");
+                  data.exception.message = data.exception.message.slice(
+                    startI,
+                    endI
+                  );
+                }
 
+                const startPosition = model.getPositionAt(data.exception.start);
+                const endPosition = model.getPositionAt(data.exception.end);
                 monaco.editor.setModelMarkers(model, "owner", [
                   {
                     severity: monaco.MarkerSeverity.Error,
@@ -496,13 +521,26 @@
                     startColumn: startPosition.column,
                     endLineNumber: endPosition.lineNumber,
                     endColumn: endPosition.column,
-                    message: data.exception.slice(startI, endI),
+                    message: data.exception.message,
                   },
                 ]);
               }
 
+              inlayHints.length = 0;
+              for (const result of data.results) {
+                inlayHints.push({
+                  label: ` => ${trimAnsi(result.label)}`,
+                  position: model.getPositionAt(result.index),
+                  kind: monaco.languages.InlayHintKind.Type,
+                });
+              }
+
+              if (data.results.length !== 0) {
+                monaco.languages.registerInlayHintsProvider("x", {}).dispose();
+              }
+
               term.write(
-                `\r\x1b[K${data.exception || data.stdout}\r\n${gray(
+                `\r\x1b[K${data.output}\r\n${gray(
                   `[duration: ${data.time.toFixed(2)}ms]`
                 )}\r\n`
               );
@@ -551,6 +589,14 @@
 
       function underline(string) {
         return "\x1b[4m" + string + "\x1b[0m";
+      }
+
+      function trimAnsi(input) {
+        return input.replace(
+          // Match ANSI escape codes
+          /\x1B\[[0-9;]*[a-zA-Z]/g,
+          ""
+        );
       }
     </script>
   </body>
