@@ -529,7 +529,7 @@
               inlayHints.length = 0;
               for (const result of data.results) {
                 inlayHints.push({
-                  label: ` => ${trimAnsi(result.label)}`,
+                  label: `: ${trimAnsi(result.label)}`,
                   position: model.getPositionAt(result.index),
                   kind: monaco.languages.InlayHintKind.Type,
                 });
