@@ -300,9 +300,7 @@ fn applyBinaryOperator(vm: *Vm, comptime operator: Instruction.Tag, left: Value,
                 .multiplication => std.math.mul(i32, left_i32, right_i32) catch break :fast,
                 .division => std.math.divExact(i32, left_i32, right_i32) catch break :fast,
                 .less => left_i32 < right_i32,
-                .less_equal => left_i32 <= right_i32,
                 .greater => left_i32 > right_i32,
-                .greater_equal => left_i32 >= right_i32,
                 .equal => left_i32 == right_i32,
                 else => @compileError("unreachable"),
             });
@@ -317,9 +315,7 @@ fn applyBinaryOperator(vm: *Vm, comptime operator: Instruction.Tag, left: Value,
         .multiplication => left_f64 * right_f64,
         .division => left_f64 / right_f64,
         .less => left_f64 < right_f64,
-        .less_equal => left_f64 <= right_f64,
         .greater => left_f64 > right_f64,
-        .greater_equal => left_f64 >= right_f64,
         .equal => left_f64 == right_f64,
         else => @compileError("unreachable"),
     });
@@ -372,7 +368,7 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                 .push_constant, .push_constant_u8 => {
                     try vm.stack.append(vm.gpa, vm.constants[payload]);
                 },
-                .addition, .subtraction, .multiplication, .division, .less, .less_equal, .greater, .greater_equal, .equal => {
+                .addition, .subtraction, .multiplication, .division, .less, .greater, .equal => {
                     const right = vm.stack.pop();
                     const left = vm.stack.pop();
                     vm.stack.appendAssumeCapacity(try vm.applyBinaryOperator(tag, left, right));

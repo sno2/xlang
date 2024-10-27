@@ -287,7 +287,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                     deferred_jump.setOffset();
                     _ = try cg.expectToken(.@")");
                 },
-                inline .@"+", .@"-", .@"*", .@"/", .@"<", .@"<=", .@">", .@">=", .@"=" => |tag| binary: {
+                inline .@"+", .@"-", .@"*", .@"/", .@"<", .@">", .@"=" => |tag| binary: {
                     const hint = cg.tokenizer.start;
                     cg.tokenizer.next();
                     try cg.genExpression(exe, false);
@@ -299,9 +299,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                         .@"*" => .multiplication,
                         .@"/" => .division,
                         .@"<" => .less,
-                        .@"<=" => .less_equal,
                         .@">" => .greater,
-                        .@">=" => .greater_equal,
                         .@"=" => .equal,
                         else => @compileError("unreachable"),
                     };

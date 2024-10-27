@@ -39,9 +39,7 @@ pub const Token = enum(u8) {
     @"*",
     @"/",
     @"<",
-    @"<=",
     @">",
-    @">=",
     @"=",
 
     number_i32,
@@ -91,8 +89,6 @@ const State = enum {
     number_i32_continue,
     number_f64_continue,
     @"#",
-    @"<",
-    @">",
     @"/",
     @"-",
     comment_continue,
@@ -108,7 +104,7 @@ pub fn next(self: *Tokenizer) void {
                     self.index += 1;
                     continue :state .init;
                 },
-                inline '(', ')', '+', '*', '=' => |b| {
+                inline '(', ')', '+', '*', '<', '>', '=' => |b| {
                     self.index += 1;
                     break :state @field(Token, &.{b});
                 },
@@ -127,14 +123,6 @@ pub fn next(self: *Tokenizer) void {
                 '#' => {
                     self.index += 1;
                     continue :state .@"#";
-                },
-                '<' => {
-                    self.index += 1;
-                    continue :state .@"<";
-                },
-                '>' => {
-                    self.index += 1;
-                    continue :state .@">";
                 },
                 '/' => {
                     self.index += 1;
@@ -212,20 +200,6 @@ pub fn next(self: *Tokenizer) void {
                 break :state .@"#t";
             },
             else => break :state .invalid,
-        },
-        .@"<" => switch (self.source[self.index]) {
-            '=' => {
-                self.index += 1;
-                break :state .@"<=";
-            },
-            else => break :state .@"<",
-        },
-        .@">" => switch (self.source[self.index]) {
-            '=' => {
-                self.index += 1;
-                break :state .@">=";
-            },
-            else => break :state .@">",
         },
         .@"/" => switch (self.source[self.index]) {
             '/' => {
