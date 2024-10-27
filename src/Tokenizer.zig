@@ -21,7 +21,6 @@ token: Token = undefined,
 start: usize = 0,
 index: usize = 0,
 last_end: usize = 0,
-seen_comment: bool = false,
 
 pub const ByteOffset = u32;
 
@@ -100,7 +99,6 @@ const State = enum {
 };
 
 pub fn next(self: *Tokenizer) void {
-    self.seen_comment = false;
     self.last_end = self.index;
     self.token = state: switch (State.init) {
         .init => {
@@ -232,7 +230,6 @@ pub fn next(self: *Tokenizer) void {
         .@"/" => switch (self.source[self.index]) {
             '/' => {
                 self.index += 1;
-                self.seen_comment = true;
                 continue :state .comment_continue;
             },
             else => break :state .@"/",
