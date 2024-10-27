@@ -24,24 +24,23 @@ const CgInfo = extern struct {
 };
 var cg_info: CgInfo = undefined;
 
-var cg_before = false;
-var cg: CodeGen = undefined;
-var exe_before = false;
-var exe: Executable = undefined;
+var cg: CodeGen = CodeGen.init(gpa, undefined);
+var maybe_exe: ?Executable = null;
 var output: std.ArrayListUnmanaged(u8) = .empty;
 
 export fn codeGen(is_program: bool) ?*CgInfo {
-    if (cg_before) {
-        cg.deinit();
-        output.clearRetainingCapacity();
-    }
-    cg_before = true;
+    output.clearRetainingCapacity();
+    cg.reset();
+    cg.tokenizer = .{ .source = source.items[0 .. source.items.len - 1 :0] };
 
-    cg = CodeGen.init(gpa, source.items[0 .. source.items.len - 1 :0]);
-    exe = cg.genProgram(if (is_program) .program else .repl_like) catch |e| switch (e) {
+    if (maybe_exe) |*exe| {
+        exe.deinit();
+        maybe_exe = null;
+    }
+
+    maybe_exe = cg.genProgram(if (is_program) .program else .repl_like) catch |e| switch (e) {
         error.OutOfMemory => unreachable,
         error.InvalidSyntax => {
-            exe_before = false;
             const config: std.io.tty.Config = .escape_codes;
             const writer = output.writer(cg.gpa);
             config.setColor(writer, .reset) catch unreachable;
@@ -69,7 +68,6 @@ export fn codeGen(is_program: bool) ?*CgInfo {
             return &cg_info;
         },
     };
-    exe_before = true;
     return null;
 }
 
@@ -101,34 +99,29 @@ const OutputMappings = extern struct {
 };
 
 export fn execute() *ExecutionInfo {
-    return executeFallible() catch {
+    execution_info = executeFallible() catch blk: {
         const message = "error: Out of memory";
-        execution_info = .{
+        break :blk .{
             .output_ptr = message,
             .output_len = message.len,
             .output_mappings_ptr = output_mappings.items.ptr,
             .output_mappings_len = 0,
         };
-        return &execution_info;
     };
+    return &execution_info;
 }
 
-fn executeFallible() !*ExecutionInfo {
-    std.debug.assert(cg_before);
-
-    if (!exe_before) {
-        execution_info = .{
-            .output_ptr = output.items.ptr,
-            .output_len = output.items.len,
-            .output_mappings_ptr = output_mappings.items.ptr,
-            .output_mappings_len = 0,
-            .exception_start = 0,
-            .exception_end = output.items.len,
-            .start = @intCast(cg_info.start),
-            .end = @intCast(cg_info.end),
-        };
-        return &execution_info;
-    }
+fn executeFallible() !ExecutionInfo {
+    const exe = maybe_exe orelse return .{
+        .output_ptr = output.items.ptr,
+        .output_len = output.items.len,
+        .output_mappings_ptr = output_mappings.items.ptr,
+        .output_mappings_len = 0,
+        .exception_start = 0,
+        .exception_end = output.items.len,
+        .start = @intCast(cg_info.start),
+        .end = @intCast(cg_info.end),
+    };
 
     if (vm_ran) {
         vm.deinit();
@@ -200,7 +193,7 @@ fn executeFallible() !*ExecutionInfo {
             try writer.writeAll("\r\n");
             try config.setColor(writer, .reset);
         }
-        execution_info = .{
+        return .{
             .output_ptr = output.items.ptr,
             .output_len = output.items.len,
             .output_mappings_ptr = output_mappings.items.ptr,
@@ -210,14 +203,12 @@ fn executeFallible() !*ExecutionInfo {
             .start = start.?,
             .end = end,
         };
-        return &execution_info;
     }
 
-    execution_info = .{
+    return .{
         .output_ptr = output.items.ptr,
         .output_len = output.items.len,
         .output_mappings_ptr = output_mappings.items.ptr,
         .output_mappings_len = output_mappings.items.len,
     };
-    return &execution_info;
 }

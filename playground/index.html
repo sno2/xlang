@@ -471,7 +471,10 @@
           }
           waiting_execution = true;
           const mode = executionMode.value;
-          location.hash = `${mode}${btoa(editor.getValue())}`;
+          const newHash = `${mode}${btoa(editor.getValue())}`;
+          if (location.hash !== "#" + newHash) {
+            location.hash = newHash;
+          }
 
           worker.postMessage({
             type: "execute",

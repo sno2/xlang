@@ -41,21 +41,28 @@ pub fn init(gpa: std.mem.Allocator, source: [:0]const u8) CodeGen {
     };
 }
 
-pub fn reset(cg: *CodeGen) !void {
+pub fn reset(cg: *CodeGen) void {
+    cg.result_endings.clearRetainingCapacity();
+    cg.constants.clearRetainingCapacity();
+    cg.captures.clearRetainingCapacity();
+    cg.defines.clearRetainingCapacity();
+    for (cg.lambdas.items) |*lambda| {
+        lambda.deinit();
+    }
+    cg.lambdas.clearRetainingCapacity();
+    cg.identifier_stack.clearRetainingCapacity();
+    cg.shadow_stack.clearRetainingCapacity();
     cg.* = .{
         .gpa = cg.gpa,
         .tokenizer = .{ .source = cg.tokenizer.source },
+        .result_endings = cg.result_endings,
         .constants = cg.constants,
-        .defines = cg.defines,
         .captures = cg.captures,
+        .defines = cg.defines,
+        .lambdas = cg.lambdas,
         .identifier_stack = cg.identifier_stack,
         .shadow_stack = cg.shadow_stack,
     };
-    cg.constants.clearRetainingCapacity();
-    cg.defines.clearRetainingCapacity();
-    cg.captures.clearRetainingCapacity();
-    cg.identifier_stack.clearRetainingCapacity(cg.gpa);
-    cg.shadow_stack.clearRetainingCapacity(cg.gpa);
 }
 
 pub fn deinit(cg: *CodeGen) void {
