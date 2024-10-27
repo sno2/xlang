@@ -149,3 +149,17 @@ test "tail" {
     try expectResult(@embedFile("tail3.x"), "500013.0");
     try expectResult(@embedFile("tail4.x"), "500012.0");
 }
+
+fn fuzzCodegen(initial_source: []const u8) !void {
+    const source = std.testing.allocator.dupeZ(u8, initial_source) catch return;
+    defer std.testing.allocator.free(source);
+    var cg = xlang.CodeGen.init(std.testing.allocator, source);
+    defer cg.deinit();
+    var program = cg.genProgram(if (initial_source.len > 0 and initial_source[0] % 2 == 0) .program else .repl_like) catch return;
+    program.deinit();
+}
+
+test "fuzz code generation" {
+    if (is_java) return error.SkipZigTest;
+    try std.testing.fuzz(fuzzCodegen, .{});
+}

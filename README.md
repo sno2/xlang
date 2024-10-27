@@ -60,6 +60,7 @@ against xlang:
 
 ```
 zig build test -Djava_compat
+# --fuzz to enable fuzz testing
 ```
 
 Run the tests against RefLang:
