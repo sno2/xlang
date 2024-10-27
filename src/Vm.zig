@@ -27,7 +27,6 @@ results: usize,
 results_pushed: usize = 0,
 call_stack: std.ArrayListUnmanaged(StackInfo) = .empty,
 cur: StackInfo = undefined,
-marked: std.DynamicBitSetUnmanaged = .{},
 exception: ?[]u8 = null,
 stack_trace: std.ArrayListUnmanaged(u32) = .empty, // source indexes
 

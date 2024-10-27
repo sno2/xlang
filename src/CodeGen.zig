@@ -41,7 +41,7 @@ pub fn init(gpa: std.mem.Allocator, source: [:0]const u8) CodeGen {
     };
 }
 
-pub fn reset(cg: *CodeGen) void {
+pub fn reset(cg: *CodeGen, source: [:0]const u8) void {
     cg.result_endings.clearRetainingCapacity();
     cg.constants.clearRetainingCapacity();
     cg.captures.clearRetainingCapacity();
@@ -54,7 +54,7 @@ pub fn reset(cg: *CodeGen) void {
     cg.shadow_stack.clearRetainingCapacity();
     cg.* = .{
         .gpa = cg.gpa,
-        .tokenizer = .{ .source = cg.tokenizer.source },
+        .tokenizer = .{ .source = source },
         .result_endings = cg.result_endings,
         .constants = cg.constants,
         .captures = cg.captures,

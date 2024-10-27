@@ -30,8 +30,7 @@ var output: std.ArrayListUnmanaged(u8) = .empty;
 
 export fn codeGen(is_program: bool) ?*CgInfo {
     output.clearRetainingCapacity();
-    cg.reset();
-    cg.tokenizer = .{ .source = source.items[0 .. source.items.len - 1 :0] };
+    cg.reset(source.items[0 .. source.items.len - 1 :0]);
 
     if (maybe_exe) |*exe| {
         exe.deinit();
