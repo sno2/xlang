@@ -94,6 +94,10 @@
         border: 1px solid rgba(255, 255, 255, 0.6);
       }
 
+      header span:first-of-type {
+        margin-right: 1rem;
+      }
+
       header select option {
         background: #222;
         color: #fff;
@@ -221,9 +225,18 @@
 
       <div>
         <span>
+          <select id="flavor" title="Flavor">
+            <option value="ArithLang">ArithLang</option>
+            <option value="VarLang">VarLang</option>
+            <option value="DefineLang">DefineLang</option>
+            <option value="FuncLang" selected>FuncLang</option>
+            <option value="RefLang">RefLang</option>
+          </select>
+        </span>
+        <span>
           <select id="execution-mode" title="Execution mode">
-            <option value="1" title="One output">Program</option>
-            <option value="0" title="Many outputs">REPL-like</option>
+            <option value="Program" title="One output" selected>Program</option>
+            <option value="REPL-like" title="Many outputs">REPL-like</option>
           </select>
         </span>
         <button id="examples-btn">Examples</button>
@@ -260,7 +273,34 @@
       const examplesBtn = document.getElementById("examples-btn");
       const examplesDialog = document.getElementById("examples");
       const examplesList = document.getElementById("examples-list");
+      const flavor = document.getElementById("flavor");
       const executionMode = document.getElementById("execution-mode");
+
+      const flavorId = {
+        ArithLang: 0,
+        VarLang: 1,
+        DefineLang: 2,
+        FuncLang: 3,
+        RefLang: 4,
+      };
+
+      const flavorCode = {
+        A: "ArithLang",
+        V: "VarLang",
+        D: "DefineLang",
+        F: "FuncLang",
+        R: "RefLang",
+      };
+
+      const executionModeId = {
+        Program: 1,
+        "REPL-like": 0,
+      };
+
+      const executionModeCode = {
+        P: "Program",
+        R: "REPL-like",
+      };
 
       const term = new Terminal({
         fontSize: 16.5,
@@ -364,9 +404,7 @@
         const editor = monaco.editor.create(
           document.getElementById("container"),
           {
-            value: `(define add
-  (lambda (a b) (+ a b))
-)
+            value: `(define add (lambda (a b) (+ a b)))
 (add 2 3)
 `,
             language: "x",
@@ -383,8 +421,13 @@
         );
 
         const loadProgram = (hash) => {
-          executionMode.value = hash[0];
-          editor.setValue(atob(hash.slice(1)));
+          try {
+            flavor.value = flavorCode[hash[0]];
+            executionMode.value = executionModeCode[hash[2]];
+            editor.setValue(atob(hash.slice(3)));
+          } catch (e) {
+            console.error("failed to load program", e);
+          }
         };
 
         if (location.hash) {
@@ -442,7 +485,8 @@
           worker.postMessage({
             type: "codegen",
             source,
-            mode: executionMode.value,
+            flavor: flavorId[flavor.value],
+            mode: executionModeId[executionMode.value],
           });
         };
 
@@ -464,6 +508,7 @@
           codeGen();
         });
         codeGen();
+        flavor.addEventListener("input", codeGen);
         executionMode.addEventListener("input", codeGen);
 
         let waiting_execution = false;
@@ -473,7 +518,9 @@
           }
           waiting_execution = true;
           const mode = executionMode.value;
-          const newHash = `${mode}${btoa(editor.getValue())}`;
+          const newHash = `${flavor.value[0]}L${mode[0]}${btoa(
+            editor.getValue()
+          )}`;
           if (location.hash !== "#" + newHash) {
             location.hash = newHash;
           }
@@ -484,8 +531,8 @@
 
           term.clear();
           term.write(
-            `\r\x1b[K${blue("$")} xlang main.x${
-              mode !== "1" ? " --repl-like" : ""
+            `\r\x1b[K${blue("$")} xlang main.${flavor.value[0].toLowerCase()}l${
+              mode === "REPL-like" ? " --repl-like" : ""
             }\r\n`
           );
           let start = performance.now();
