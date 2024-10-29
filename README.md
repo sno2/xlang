@@ -1,11 +1,11 @@
 # xlang
 
 Alternative implementation of the [ArithLang](https://github.com/clayness/arithlang),
-[DefineLang](https://github.com/clayness/definelang), [FuncLang](https://github.com/clayness/funclang),
-and [RefLang](https://github.com/clayness/reflang)
-[Scheme](https://www.scheme.org)-like languages used in COM S 3420 at Iowa State
-University. The languages are also described in the textbook _An Experiential
-Introduction to Principles of Programming Languages_ by Hridesh Rajan.
+[VarLang](https://github.com/clayness/varlang), [DefineLang](https://github.com/clayness/definelang),
+[FuncLang](https://github.com/clayness/funclang), and [RefLang](https://github.com/clayness/reflang)
+languages used in COM S 3420 at Iowa State University. The languages are also
+described in the textbook _An Experiential Introduction to Principles of
+Programming Languages_ by Hridesh Rajan.
 
 ## Implementation details
 

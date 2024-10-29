@@ -13,7 +13,8 @@ pub fn main() !void {
     var iter = examples_dir.iterate();
     var has_before: bool = false;
     while (try iter.next()) |entry| {
-        if (!std.mem.endsWith(u8, entry.name, ".zig")) {
+        const extension = std.fs.path.extension(entry.name);
+        if (!std.mem.endsWith(u8, entry.name, ".zig") and extension.len == 3) {
             if (has_before) {
                 try json.append(',');
             }
@@ -21,7 +22,7 @@ pub fn main() !void {
             const file = try examples_dir.openFile(entry.name, .{});
             const bytes = try file.readToEndAlloc(gpa, 4096);
             var enc = std.base64.standard.Encoder;
-            try json.writer().print("\"{s}\":\"1", .{entry.name});
+            try json.writer().print("\"{s}\":\"{c}LP", .{ entry.name, std.ascii.toUpper(extension[1]) });
             const len = enc.calcSize(bytes.len);
             try json.ensureUnusedCapacity(len);
             json.items.len += len;

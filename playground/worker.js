@@ -14,8 +14,7 @@ addEventListener("message", async (e) => {
       data.source,
       new Uint8Array(exports.memory.buffer, ptr, data.source.length)
     );
-
-    const error_ptr = exports.codeGen(data.mode === "1");
+    const error_ptr = exports.codeGen(data.flavor, data.mode);
     if (error_ptr) {
       const error_info = new Uint32Array(exports.memory.buffer, error_ptr, 4);
       const message = dec.decode(

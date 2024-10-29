@@ -5,6 +5,14 @@ const xlang = @import("xlang");
 const CodeGen = xlang.CodeGen;
 const Vm = xlang.Vm;
 
+const extension_map = std.StaticStringMap(CodeGen.Flavor).initComptime(.{
+    .{ ".al", .arithlang },
+    .{ ".vl", .varlang },
+    .{ ".dl", .definelang },
+    .{ ".fl", .funclang },
+    .{ ".rl", .reflang },
+});
+
 pub fn main() !u8 {
     var gpa_: std.heap.GeneralPurposeAllocator(.{}) = .init;
     defer _ = gpa_.deinit();
@@ -24,10 +32,12 @@ pub fn main() !u8 {
     const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
 
+    const flavor = extension_map.get(std.fs.path.extension(file_path)) orelse std.process.fatal("invalid program file extension", .{});
+
     const source = try file.readToEndAllocOptions(gpa, 4096, null, 1, 0);
     defer gpa.free(source);
 
-    var cg = CodeGen.init(gpa, source);
+    var cg = CodeGen.init(gpa, source, flavor);
     defer cg.deinit();
 
     var program = cg.genProgram(if (is_program) .program else .repl_like) catch |e| switch (e) {

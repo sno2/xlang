@@ -24,13 +24,13 @@ const CgInfo = extern struct {
 };
 var cg_info: CgInfo = undefined;
 
-var cg: CodeGen = CodeGen.init(gpa, undefined);
+var cg: CodeGen = CodeGen.init(gpa, undefined, undefined);
 var maybe_exe: ?Executable = null;
 var output: std.ArrayListUnmanaged(u8) = .empty;
 
-export fn codeGen(is_program: bool) ?*CgInfo {
+export fn codeGen(flavor: CodeGen.Flavor, is_program: bool) ?*CgInfo {
     output.clearRetainingCapacity();
-    cg.reset(source.items[0 .. source.items.len - 1 :0]);
+    cg.reset(source.items[0 .. source.items.len - 1 :0], flavor);
 
     if (maybe_exe) |*exe| {
         exe.deinit();
