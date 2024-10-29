@@ -3,7 +3,7 @@
 Alternative implementation of the [ArithLang](https://github.com/clayness/arithlang),
 [VarLang](https://github.com/clayness/varlang), [DefineLang](https://github.com/clayness/definelang),
 [FuncLang](https://github.com/clayness/funclang), and [RefLang](https://github.com/clayness/reflang)
-languages used in COM S 3420 at Iowa State University. The languages are also
+languages used in COM S 3420 at Iowa State University. The languages are
 described in the textbook _An Experiential Introduction to Principles of
 Programming Languages_ by Hridesh Rajan.
 
@@ -43,7 +43,7 @@ would most likely improve its performance.
 ## Playground
 
 The web playground uses the [Monaco Editor](https://microsoft.github.io/monaco-editor/),
-[xterm.js](https://xtermjs.org/), and a Wasm build of xlang to interpreter
+[xterm.js](https://xtermjs.org/), and a Wasm build of xlang to interpret
 programs on the web. The generated playground files are checked into Git to
 avoid complex deployments. Build the playground using
 
