@@ -6,7 +6,6 @@ pub fn build(b: *std.Build) void {
 
     const maybe_java_source: ?[]const u8 = b.option([]const u8, "java_source", "Java source path") orelse null;
     const java_compat = b.option(bool, "java_compat", "Use Java-compatible formatting (only for testing)") orelse false;
-    const nursery = b.option(bool, "nursery", "Enable the nursery heap section") orelse true;
 
     const xlang_mod = b.addModule("xlang", .{
         .root_source_file = b.path("src/xlang.zig"),
@@ -16,7 +15,6 @@ pub fn build(b: *std.Build) void {
     {
         const build_options = b.addOptions();
         build_options.addOption(bool, "java_compat", java_compat);
-        build_options.addOption(bool, "nursery", nursery);
         xlang_mod.addImport("build_options", build_options.createModule());
     }
 

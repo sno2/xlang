@@ -1,0 +1,5 @@
+(define a (ref 4))
+(define b (ref 6))
+(define ignoreFirst (lambda (a b) b))
+(define _ (set! (ignoreFirst (set! a 23) b) (deref a)))
+(deref b)

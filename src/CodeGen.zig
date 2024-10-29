@@ -33,6 +33,7 @@ lambdas: std.ArrayListUnmanaged(Executable) = .empty,
 error_info: ?ErrorInfo = null,
 identifier_stack: std.ArrayListUnmanaged([]const u8) = .empty,
 shadow_stack: std.ArrayListUnmanaged(Shadow) = .empty,
+save_stack: std.ArrayListUnmanaged(u8) = .empty,
 
 pub fn init(gpa: std.mem.Allocator, source: [:0]const u8) CodeGen {
     return .{
@@ -52,6 +53,7 @@ pub fn reset(cg: *CodeGen, source: [:0]const u8) void {
     cg.lambdas.clearRetainingCapacity();
     cg.identifier_stack.clearRetainingCapacity();
     cg.shadow_stack.clearRetainingCapacity();
+    cg.save_stack.clearRetainingCapacity();
     cg.* = .{
         .gpa = cg.gpa,
         .tokenizer = .{ .source = source },
@@ -62,6 +64,7 @@ pub fn reset(cg: *CodeGen, source: [:0]const u8) void {
         .lambdas = cg.lambdas,
         .identifier_stack = cg.identifier_stack,
         .shadow_stack = cg.shadow_stack,
+        .save_stack = cg.save_stack,
     };
 }
 
@@ -76,6 +79,7 @@ pub fn deinit(cg: *CodeGen) void {
     cg.lambdas.deinit(cg.gpa);
     cg.identifier_stack.deinit(cg.gpa);
     cg.shadow_stack.deinit(cg.gpa);
+    cg.save_stack.deinit(cg.gpa);
 }
 
 const Shadow = struct {
@@ -413,11 +417,23 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                     }, {}, hint);
                     _ = try cg.expectToken(.@")");
                 },
+                // rhs is evaluated after lhs
                 .@"set!" => {
                     const hint = cg.tokenizer.start;
                     cg.tokenizer.next();
+
+                    const bytecode_len = exe.bytecode.items.len;
                     try cg.genExpression(exe, false);
+
+                    const save_stack_len = cg.save_stack.items.len;
+                    try cg.save_stack.appendSlice(cg.gpa, exe.bytecode.items[bytecode_len..]);
+                    exe.bytecode.shrinkRetainingCapacity(bytecode_len);
+
                     try cg.genExpression(exe, false);
+
+                    try exe.bytecode.appendSlice(cg.gpa, cg.save_stack.items[save_stack_len..]);
+                    cg.save_stack.shrinkRetainingCapacity(save_stack_len);
+
                     try exe.emit(.set, {}, hint);
                     _ = try cg.expectToken(.@")");
                 },

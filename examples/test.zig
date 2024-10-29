@@ -150,6 +150,10 @@ test "tail" {
     try expectResult(@embedFile("tail4.x"), "500012.0");
 }
 
+test "set" {
+    try expectResult(@embedFile("set.x"), "4.0");
+}
+
 fn fuzzCodegen(initial_source: []const u8) !void {
     const source = std.testing.allocator.dupeZ(u8, initial_source) catch return;
     defer std.testing.allocator.free(source);

@@ -528,8 +528,8 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                     vm.stack.appendAssumeCapacity(reference.value);
                 },
                 .set => {
-                    const value = vm.stack.pop();
                     const reference_value = vm.stack.pop();
+                    const value = vm.stack.pop();
                     if (reference_value.getTag() != .reference) {
                         try vm.throwException("invalid set on non-reference value", .{});
                     }
