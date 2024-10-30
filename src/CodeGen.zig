@@ -126,13 +126,29 @@ pub const ErrorInfo = struct {
         invalid_function_call,
         invalid_define,
         invalid_number,
-        unsupported,
+        unsupported: Feature,
+
+        pub const Feature = enum {
+            bool,
+            define,
+            variable,
+            conditional,
+            comparison,
+            lambda,
+            call,
+            list_pair,
+            reference,
+        };
     };
 };
 
 fn fail(cg: *CodeGen, error_info: ErrorInfo) !noreturn {
     cg.error_info = error_info;
     return error.InvalidSyntax;
+}
+
+fn failUnsupported(cg: *CodeGen, feature: ErrorInfo.Data.Feature) !noreturn {
+    try cg.fail(.{ .data = .{ .unsupported = feature }, .source_range = cg.tokenizer.tokenRange() });
 }
 
 pub fn formatError(cg: *CodeGen, config: std.io.tty.Config, writer: anytype) !void {
@@ -148,13 +164,23 @@ pub fn formatError(cg: *CodeGen, config: std.io.tty.Config, writer: anytype) !vo
         .invalid_function_call => try writer.writeAll("invalid function call"),
         .invalid_define => try writer.writeAll("define must be top-level"),
         .invalid_number => try writer.writeAll("failed to parse number literal"),
-        .unsupported => try writer.print("syntax is not supported in {s}", .{switch (cg.flavor) {
+        .unsupported => |feature| try writer.print("{s} are not supported in {s}", .{ switch (feature) {
+            .bool => "boolean literals",
+            .define => "defines",
+            .variable => "variables",
+            .conditional => "conditionals",
+            .comparison => "comparisons",
+            .lambda => "lambdas",
+            .call => "calls",
+            .list_pair => "lists and pairs",
+            .reference => "references",
+        }, switch (cg.flavor) {
             .arithlang => "ArithLang",
             .varlang => "VarLang",
             .definelang => "DefineLang",
             .funclang => "FuncLang",
             .reflang => "RefLang",
-        }}),
+        } }),
     }
     try config.setColor(writer, .reset);
 }
@@ -219,7 +245,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
     switch (cg.tokenizer.token) {
         inline .@"#f", .@"#t" => |tag| {
             if (cg.flavor.isBefore(.funclang)) {
-                try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                try cg.failUnsupported(.bool);
             }
             try exe.emitConstant(Value.from(tag == .@"#t"), null);
             cg.tokenizer.next();
@@ -252,7 +278,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
         },
         .identifier => {
             if (cg.flavor.isBefore(.varlang)) {
-                try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                try cg.failUnsupported(.variable);
             }
             try cg.genIdentifier(exe, cg.tokenizer.tokenSource());
             cg.tokenizer.next();
@@ -269,7 +295,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                 },
                 .let => {
                     if (cg.flavor.isBefore(.varlang)) {
-                        try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                        try cg.failUnsupported(.variable);
                     }
                     cg.tokenizer.next();
 
@@ -317,7 +343,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                 },
                 .@"if" => {
                     if (cg.flavor.isBefore(.funclang)) {
-                        try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                        try cg.failUnsupported(.conditional);
                     }
                     const hint = cg.tokenizer.start;
                     cg.tokenizer.next();
@@ -336,7 +362,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                     switch (tag) {
                         .@"<", .@">", .@"=" => {
                             if (cg.flavor.isBefore(.funclang)) {
-                                try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                                try cg.failUnsupported(.comparison);
                             }
                         },
                         else => {},
@@ -373,7 +399,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                 },
                 .lambda => {
                     if (cg.flavor.isBefore(.funclang)) {
-                        try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                        try cg.failUnsupported(.lambda);
                     }
                     cg.tokenizer.next();
 
@@ -404,7 +430,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                 },
                 .identifier, .@"(" => {
                     if (cg.flavor.isBefore(.funclang)) {
-                        try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                        try cg.failUnsupported(.call);
                     }
                     const hint = cg.tokenizer.start;
                     try cg.genExpression(exe, false);
@@ -423,7 +449,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                 },
                 .list => {
                     if (cg.flavor.isBefore(.funclang)) {
-                        try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                        try cg.failUnsupported(.list_pair);
                     }
                     cg.tokenizer.next();
                     var item_count: u16 = 0;
@@ -435,7 +461,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                 },
                 .cons => {
                     if (cg.flavor.isBefore(.funclang)) {
-                        try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                        try cg.failUnsupported(.list_pair);
                     }
                     const hint = cg.tokenizer.start;
                     cg.tokenizer.next();
@@ -446,7 +472,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                 },
                 .car => {
                     if (cg.flavor.isBefore(.funclang)) {
-                        try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                        try cg.failUnsupported(.list_pair);
                     }
                     const hint = cg.tokenizer.start;
                     cg.tokenizer.next();
@@ -456,7 +482,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                 },
                 .cdr => {
                     if (cg.flavor.isBefore(.funclang)) {
-                        try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                        try cg.failUnsupported(.list_pair);
                     }
                     const hint = cg.tokenizer.start;
                     cg.tokenizer.next();
@@ -466,7 +492,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                 },
                 .@"null?" => {
                     if (cg.flavor.isBefore(.funclang)) {
-                        try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                        try cg.failUnsupported(.list_pair);
                     }
                     const hint = cg.tokenizer.start;
                     cg.tokenizer.next();
@@ -476,7 +502,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                 },
                 inline .ref, .free, .deref => |tag| {
                     if (cg.flavor.isBefore(.reflang)) {
-                        try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                        try cg.failUnsupported(.reference);
                     }
                     const hint = cg.tokenizer.start;
                     cg.tokenizer.next();
@@ -491,7 +517,7 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool) !void {
                 },
                 .@"set!" => {
                     if (cg.flavor.isBefore(.reflang)) {
-                        try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                        try cg.failUnsupported(.reference);
                     }
                     // rhs is evaluated before lhs
                     const hint = cg.tokenizer.start;
@@ -565,7 +591,7 @@ pub fn genProgram(cg: *CodeGen, mode: Mode) Error!Executable {
                 break :define;
             }
             if (cg.flavor.isBefore(.definelang)) {
-                try cg.fail(.{ .data = .unsupported, .source_range = cg.tokenizer.tokenRange() });
+                try cg.failUnsupported(.define);
             }
             cg.tokenizer.next();
 
