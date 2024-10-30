@@ -44,8 +44,7 @@ would most likely improve its performance.
 
 The web playground uses the [Monaco Editor](https://microsoft.github.io/monaco-editor/),
 [xterm.js](https://xtermjs.org/), and a Wasm build of xlang to interpret
-programs on the web. The generated playground files are checked into Git to
-avoid complex deployments. Build the playground using
+programs on the web. Build the playground using
 
 ```
 zig build playground
