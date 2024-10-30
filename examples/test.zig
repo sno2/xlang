@@ -154,6 +154,12 @@ test "set" {
     try expectResult(@embedFile("set.rl"), .reflang, "4.0");
 }
 
+test "math" {
+    try expectResult(@embedFile("math1.al"), .arithlang, "-1.0");
+    try expectResult(@embedFile("math2.al"), .arithlang, "11.5");
+    try expectResult(@embedFile("math3.al"), .arithlang, "-25.666666666666668");
+}
+
 fn fuzzCodegen(initial_source: []const u8) !void {
     const source = std.testing.allocator.dupeZ(u8, initial_source) catch return;
     defer std.testing.allocator.free(source);
