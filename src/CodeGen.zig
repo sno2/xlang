@@ -589,17 +589,20 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool, comptime is_type
                         i -= 1;
                         const let = cg.let_stack.items[i];
                         const gop = try exe.locals.getOrPut(cg.gpa, let.identifier);
-                        if (!gop.found_existing) {
-                            gop.value_ptr.* = exe.allocLocal();
-                            if (is_typed) try exe.local_types.append(cg.gpa, let.type);
-                        } else if (is_typed) {
-                            exe.local_types.items[gop.value_ptr.*] = let.type;
+                        const old = if (gop.found_existing) gop.value_ptr.* else undefined;
+                        gop.value_ptr.* = exe.allocLocal();
+                        if (is_typed) {
+                            if (!gop.found_existing) {
+                                try exe.local_types.append(cg.gpa, let.type);
+                            } else {
+                                exe.local_types.items[gop.value_ptr.*] = let.type;
+                            }
                         }
                         try exe.emit(.move_local, gop.value_ptr.*, null);
                         if (gop.found_existing or cg.defines.contains(let.identifier)) {
                             try cg.shadow_stack.append(cg.gpa, .{
                                 .name = let.identifier,
-                                .old_local = if (gop.found_existing) gop.value_ptr.* else null,
+                                .old_local = if (gop.found_existing) old else null,
                             });
                         }
                     }
