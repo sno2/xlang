@@ -261,7 +261,7 @@ pub fn formatError(cg: *CodeGen, config: std.io.tty.Config, writer: anytype) !vo
             try writer.writeByte('\'');
         },
         .expected_n_arguments => |data| {
-            try writer.writeByte('\'');
+            try writer.writeAll("function type '");
             try cg.formatType(data.callee, writer);
             try writer.print("' expects {} arguments, got {}", .{ data.expected, data.got });
         },
@@ -662,7 +662,6 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool, comptime is_type
                     cg.tokenizer.next();
                     const left_start = cg.tokenizer.start;
                     const left_type = try cg.genExpression(exe, false, is_typed);
-
                     if (is_typed and left_type != .num) {
                         try cg.fail(.{
                             .data = .{ .expected_type = .{ .expected = .num, .got = left_type } },

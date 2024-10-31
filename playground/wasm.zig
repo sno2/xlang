@@ -61,8 +61,8 @@ export fn codeGen(flavor: CodeGen.Flavor, is_program: bool) ?*CgInfo {
             cg_info = .{
                 .error_ptr = output.items.ptr,
                 .error_len = output.items.len,
-                .start = cg.tokenizer.start,
-                .end = cg.tokenizer.index,
+                .start = cg.error_info.?.source_range.start,
+                .end = cg.error_info.?.source_range.end,
             };
             return &cg_info;
         },
