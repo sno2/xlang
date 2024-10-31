@@ -57,7 +57,7 @@ pub const Flavor = enum(u8) {
         .{ "TypeLang", .typelang },
     });
 
-    fn isBefore(a: Flavor, b: Flavor) bool {
+    pub fn isBefore(a: Flavor, b: Flavor) bool {
         return @intFromEnum(a) < @intFromEnum(b);
     }
 };

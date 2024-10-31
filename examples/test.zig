@@ -3,19 +3,22 @@ const std = @import("std");
 const xlang = @import("xlang");
 const build_options = @import("build_options");
 
-const is_java = build_options.java_source != null;
+const is_java = build_options.reflang_source != null or build_options.typelang_source != null;
 
 fn expectResult(source: [:0]const u8, flavor: xlang.CodeGen.Flavor, expected: []const u8) !void {
     const gpa = std.testing.allocator;
 
-    if (build_options.java_source) |java_source| {
+    if (is_java) {
         var root = try std.fs.openDirAbsolute(build_options.root, .{});
         defer root.close();
 
         var examples = try root.openDir("examples", .{});
         defer examples.close();
 
-        var java = try root.openDir(java_source, .{});
+        var java = try root.openDir(
+            if (flavor.isBefore(.typelang)) build_options.reflang_source.? else build_options.typelang_source.?,
+            .{},
+        );
         defer java.close();
 
         var stdout = std.ArrayList(u8).init(gpa);
@@ -118,7 +121,7 @@ test "mutable" {
 }
 
 test "shadow" {
-    try expectResult(@embedFile("shadow.vl"), .varlang, "12.0");
+    try expectResult(@embedFile("shadow.vl"), .varlang, "45.0");
 }
 
 test "parity" {

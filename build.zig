@@ -4,7 +4,8 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const maybe_java_source: ?[]const u8 = b.option([]const u8, "java_source", "Java source path") orelse null;
+    const maybe_reflang_source: ?[]const u8 = b.option([]const u8, "reflang_source", "RefLang source path") orelse null;
+    const maybe_typelang_source: ?[]const u8 = b.option([]const u8, "typelang_source", "TypeLang source path") orelse null;
     const java_compat = b.option(bool, "java_compat", "Use Java-compatible formatting (only for testing)") orelse false;
 
     const xlang_mod = b.addModule("xlang", .{
@@ -36,7 +37,8 @@ pub fn build(b: *std.Build) void {
 
     const build_options = b.addOptions();
     build_options.addOptionPath("root", b.path("."));
-    build_options.addOption(?[]const u8, "java_source", maybe_java_source);
+    build_options.addOption(?[]const u8, "reflang_source", maybe_reflang_source);
+    build_options.addOption(?[]const u8, "typelang_source", maybe_typelang_source);
     example_tests.root_module.addImport("build_options", build_options.createModule());
 
     const run_example_tests = b.addRunArtifact(example_tests);

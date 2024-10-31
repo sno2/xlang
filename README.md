@@ -63,10 +63,10 @@ zig build test -Djava_compat
 # --fuzz to enable fuzz testing
 ```
 
-Run the tests against RefLang:
+Run the tests against RefLang and Typelang:
 
 ```
-zig build test -Djava_source=../path/to/reflang
+zig build test -Dreflang_source=../path/to/reflang -Dtypelang_source=../path/to/typelang
 ```
 
 ## License
