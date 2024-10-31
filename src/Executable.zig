@@ -3,6 +3,7 @@ const std = @import("std");
 const CodeGen = @import("CodeGen.zig");
 const Vm = @import("Vm.zig");
 
+const Type = CodeGen.Type;
 const Value = Vm.Value;
 
 const Executable = @This();
@@ -17,12 +18,14 @@ locals: std.StringHashMapUnmanaged(u16) = .empty,
 captures: std.ArrayListUnmanaged(u16) = .empty,
 source: []const u8,
 parent: ?*Executable = null,
+local_types: std.ArrayListUnmanaged(Type) = .empty, // local => type
 
 pub fn deinit(exe: *Executable) void {
     exe.bytecode.deinit(exe.cg.gpa);
     exe.source_mapping.deinit(exe.cg.gpa);
     exe.locals.deinit(exe.cg.gpa);
     exe.captures.deinit(exe.cg.gpa);
+    exe.local_types.deinit(exe.cg.gpa);
 }
 
 pub fn allocLocal(exe: *Executable) u16 {

@@ -11,6 +11,7 @@ const extension_map = std.StaticStringMap(CodeGen.Flavor).initComptime(.{
     .{ ".dl", .definelang },
     .{ ".fl", .funclang },
     .{ ".rl", .reflang },
+    .{ ".tl", .typelang },
 });
 
 pub fn main() !u8 {

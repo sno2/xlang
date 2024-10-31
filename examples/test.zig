@@ -160,6 +160,34 @@ test "math" {
     try expectResult(@embedFile("math3.al"), .arithlang, "-25.666666666666668");
 }
 
+test "sum" {
+    try expectResult(@embedFile("sum.tl"), .typelang, "5.0");
+}
+
+test "immutable" {
+    try expectResult(@embedFile("immutable.tl"), .typelang, "23.0");
+}
+
+test "function type" {
+    try expectResult(@embedFile("function_type.tl"), .typelang, "5.0");
+}
+
+test "curry" {
+    try expectResult(@embedFile("curry.tl"), .typelang, "5.18518518518519");
+}
+
+test "size" {
+    try expectResult(@embedFile("size.tl"), .typelang, "18.0");
+}
+
+test "capture define" {
+    try expectResult(@embedFile("capture_define.tl"), .typelang, "0.0");
+}
+
+test "typed ref" {
+    try expectResult(@embedFile("typed_ref.tl"), .typelang, "288.0");
+}
+
 fn fuzzCodegen(initial_source: []const u8) !void {
     const source = std.testing.allocator.dupeZ(u8, initial_source) catch return;
     defer std.testing.allocator.free(source);

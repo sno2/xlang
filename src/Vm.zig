@@ -38,16 +38,17 @@ pub const StackInfo = struct {
 };
 
 pub fn init(cg: CodeGen) !Vm {
+    const defines_count = @max(cg.defines.count(), cg.define_types.items.len);
     var vm: Vm = .{
         .gpa = cg.gpa,
         .heap = try Heap.init(cg.gpa),
         .constants = cg.constants.items,
         .lambdas = cg.lambdas.items,
         .stack = .empty,
-        .captures_start = cg.defines.count(),
+        .captures_start = defines_count,
         .results = cg.results,
     };
-    try vm.resize(cg.defines.count() + cg.captures_count);
+    try vm.resize(defines_count + cg.captures_count);
     return vm;
 }
 

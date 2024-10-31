@@ -1,0 +1,5 @@
+(define x: Ref num (ref: num 23))
+(define y: num (+ (deref x) (set! x 9)))
+(define z: num (deref x))
+(define _: unit (free x))
+(* y z)

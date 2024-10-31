@@ -14,6 +14,11 @@ const keyword_map = std.StaticStringMap(Token).initComptime(.{
     .{ "ref", .ref },
     .{ "free", .free },
     .{ "deref", .deref },
+    .{ "num", .num },
+    .{ "bool", .bool },
+    .{ "List", .List },
+    .{ "Ref", .Ref },
+    .{ "unit", .unit },
 });
 
 source: [:0]const u8,
@@ -41,6 +46,9 @@ pub const Token = enum(u8) {
     @"<",
     @">",
     @"=",
+    @":",
+    @",",
+    @"->",
 
     number_i32,
     number_f64,
@@ -62,6 +70,11 @@ pub const Token = enum(u8) {
     free,
     deref,
     @"set!",
+    num,
+    bool,
+    List,
+    Ref,
+    unit,
 
     pub fn description(token: Token) []const u8 {
         return switch (token) {
@@ -104,7 +117,7 @@ pub fn next(self: *Tokenizer) void {
                     self.index += 1;
                     continue :state .init;
                 },
-                inline '(', ')', '+', '*', '<', '>', '=' => |b| {
+                inline '(', ')', '+', '*', '<', '>', '=', ':', ',' => |b| {
                     self.index += 1;
                     break :state @field(Token, &.{b});
                 },
@@ -180,6 +193,10 @@ pub fn next(self: *Tokenizer) void {
             '.' => {
                 self.index += 1;
                 continue :state .number_f64_continue;
+            },
+            '>' => {
+                self.index += 1;
+                break :state .@"->";
             },
             else => break :state .@"-",
         },

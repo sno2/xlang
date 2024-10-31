@@ -231,6 +231,7 @@
             <option value="DefineLang">DefineLang</option>
             <option value="FuncLang" selected>FuncLang</option>
             <option value="RefLang">RefLang</option>
+            <option value="TypeLang">TypeLang</option>
           </select>
         </span>
         <span>
@@ -282,6 +283,7 @@
         DefineLang: 2,
         FuncLang: 3,
         RefLang: 4,
+        TypeLang: 5,
       };
 
       const flavorCode = {
@@ -290,6 +292,7 @@
         D: "DefineLang",
         F: "FuncLang",
         R: "RefLang",
+        T: "TypeLang",
       };
 
       const executionModeId = {
@@ -374,6 +377,11 @@
           "ref",
           "free",
           "deref",
+          "num",
+          "bool",
+          "List",
+          "Ref",
+          "unit",
         ],
         tokenizer: {
           root: [
