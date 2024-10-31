@@ -37,6 +37,7 @@ pub const SourceRange = struct {
 pub const Token = enum(u8) {
     eof,
     invalid,
+    unterminated_comment,
     @"(",
     @")",
     @"+",
@@ -83,6 +84,7 @@ pub const Token = enum(u8) {
             .number_i32 => "a integer literal",
             .number_f64 => "a float literal",
             .identifier => "an identifier",
+            .unterminated_comment => "an unterminated comment",
             inline else => |tag| "'" ++ @tagName(tag) ++ "'",
         };
     }
@@ -105,6 +107,8 @@ const State = enum {
     @"/",
     @"-",
     comment_continue,
+    block_comment_continue,
+    block_comment_asterisk,
 };
 
 pub fn next(self: *Tokenizer) void {
@@ -223,6 +227,10 @@ pub fn next(self: *Tokenizer) void {
                 self.index += 1;
                 continue :state .comment_continue;
             },
+            '*' => {
+                self.index += 1;
+                continue :state .block_comment_continue;
+            },
             else => break :state .@"/",
         },
         .comment_continue => switch (self.source[self.index]) {
@@ -234,6 +242,32 @@ pub fn next(self: *Tokenizer) void {
             else => {
                 self.index += 1;
                 continue :state .comment_continue;
+            },
+        },
+        .block_comment_continue => switch (self.source[self.index]) {
+            0 => break :state .unterminated_comment,
+            '*' => {
+                self.index += 1;
+                continue :state .block_comment_asterisk;
+            },
+            else => {
+                self.index += 1;
+                continue :state .block_comment_continue;
+            },
+        },
+        .block_comment_asterisk => switch (self.source[self.index]) {
+            0 => break :state .unterminated_comment,
+            '*' => {
+                self.index += 1;
+                continue :state .block_comment_asterisk;
+            },
+            '/' => {
+                self.index += 1;
+                continue :state .init;
+            },
+            else => {
+                self.index += 1;
+                continue :state .block_comment_continue;
             },
         },
     };

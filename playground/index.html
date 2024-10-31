@@ -367,10 +367,17 @@
       const config = {
         comments: {
           lineComment: "//",
+          blockComment: ["/*", "*/"],
         },
         brackets: [["(", ")"]],
-        autoClosingPairs: [{ open: "(", close: ")" }],
-        surroundingPairs: [{ open: "(", close: ")" }],
+        autoClosingPairs: [
+          { open: "(", close: ")" },
+          { open: "/*", close: "*/" },
+        ],
+        surroundingPairs: [
+          { open: "(", close: ")" },
+          { open: "/*", close: "*/" },
+        ],
       };
 
       const language = {
@@ -400,6 +407,7 @@
           root: [
             [/[ \t\r\n]+/, "white"],
             [/\/\/.*$/, "number"],
+            [/\/\*/, "number", "@comment"],
             [/-?(?:\d+\.\d*|\.\d+|\d+)/, "number.float"],
             [/#[tf]\b/, "constant"],
             [/[+\-*/<>=]/, "keyword.operator"],
@@ -414,6 +422,11 @@
                 },
               },
             ],
+          ],
+          comment: [
+            [/[^\/*]+/, "number"],
+            [/\*\//, "number", "@pop"],
+            [/[\/*]/, "number"],
           ],
         },
       };
