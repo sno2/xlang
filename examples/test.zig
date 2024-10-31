@@ -181,7 +181,7 @@ test "size" {
 }
 
 test "capture define" {
-    try expectResult(@embedFile("capture_define.tl"), .typelang, "0.0");
+    try expectResult(@embedFile("capturedef.tl"), .typelang, "0.0");
 }
 
 test "typed ref" {

@@ -199,10 +199,19 @@
         text-decoration: underline;
       }
 
-      #examples-list {
+      #examples-list details {
+        margin: 0.25rem 0;
+      }
+
+      #examples-list details summary {
+        padding: 0.25rem 0;
+        cursor: pointer;
+      }
+
+      #examples-list details div {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 0.4rem 0.2rem;
+        gap: 0.6rem 0.2rem;
         font-family: "Roboto Mono", monospace;
         font-size: 0.95rem;
       }
@@ -285,6 +294,10 @@
         RefLang: 4,
         TypeLang: 5,
       };
+
+      const flavorSorting = Object.fromEntries(
+        Object.entries(flavorId).map(([a, b]) => [a[0], b])
+      );
 
       const flavorCode = {
         A: "ArithLang",
@@ -618,16 +631,35 @@
 
         examples.then((examples) => {
           const entries = Object.entries(examples);
-          entries.sort(([a, _], [b, __]) => a > b);
-          for (const [name, base64] of entries) {
-            const anchor = document.createElement("a");
-            anchor.textContent = name;
-            anchor.href = `#${base64}`;
-            anchor.addEventListener("click", (e) => {
-              loadProgram(base64);
-              examplesDialog.close();
-            });
-            examplesList.appendChild(anchor);
+          const groups = Object.entries(
+            Object.groupBy(entries, ([name, _]) =>
+              name.slice(name.indexOf(".") + 1)
+            )
+          );
+          groups.sort(
+            ([a], [b]) =>
+              flavorSorting[a[0].toUpperCase()] >
+              flavorSorting[b[0].toUpperCase()]
+          );
+          for (const [ending, entries] of groups) {
+            entries.sort();
+            const details = document.createElement("details");
+            const summary = document.createElement("summary");
+            summary.textContent = flavorCode[ending[0].toUpperCase()];
+            details.appendChild(summary);
+            const div = document.createElement("div");
+            for (const [name, base64] of entries) {
+              const anchor = document.createElement("a");
+              anchor.textContent = name;
+              anchor.href = `#${base64}`;
+              anchor.addEventListener("click", (e) => {
+                loadProgram(base64);
+                examplesDialog.close();
+              });
+              div.appendChild(anchor);
+            }
+            details.appendChild(div);
+            examplesList.appendChild(details);
           }
         });
       });
