@@ -191,6 +191,10 @@ test "typed ref" {
     try expectResult(@embedFile("typed_ref.tl"), .typelang, "288.0");
 }
 
+test "identifiers" {
+    try expectResult(@embedFile("identifiers.dl"), .definelang, "41.0");
+}
+
 fn fuzzCodegen(initial_source: []const u8) !void {
     const source = std.testing.allocator.dupeZ(u8, initial_source) catch return;
     defer std.testing.allocator.free(source);

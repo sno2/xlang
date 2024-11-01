@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const unicode_id = @import("unicode-id");
+
 const Tokenizer = @This();
 
 const keyword_map = std.StaticStringMap(Token).initComptime(.{
@@ -26,6 +28,7 @@ token: Token = undefined,
 start: usize = 0,
 index: usize = 0,
 last_end: usize = 0,
+is_utf8: bool = false,
 
 pub const ByteOffset = u32;
 
@@ -145,9 +148,18 @@ pub fn next(self: *Tokenizer) void {
                     self.index += 1;
                     continue :state .@"/";
                 },
-                else => {
+                else => |b| {
                     if (self.index == self.source.len) {
                         break :state .eof;
+                    }
+
+                    if (!std.ascii.isASCII(b)) id: {
+                        const len = std.unicode.utf8ByteSequenceLength(self.source[self.index]) catch break :id;
+                        const c = std.unicode.utf8Decode(self.source[self.index..][0..len]) catch break :id;
+                        if (unicode_id.canStartId(c)) {
+                            self.index += len;
+                            continue :state .identifier_continue;
+                        }
                     }
 
                     self.index += 1;
@@ -174,7 +186,12 @@ pub fn next(self: *Tokenizer) void {
                 }
                 break :state keyword_map.get(self.tokenSource()) orelse .identifier;
             },
-            else => {
+            else => |b| {
+                if (!std.ascii.isAscii(b)) {
+                    self.continueUnicodeIdentifier() catch {
+                        break :state .invalid;
+                    };
+                }
                 break :state keyword_map.get(self.tokenSource()) orelse .identifier;
             },
         },
@@ -271,4 +288,22 @@ pub fn next(self: *Tokenizer) void {
             },
         },
     };
+}
+
+fn continueUnicodeIdentifier(self: *Tokenizer) !void {
+    @branchHint(.unlikely);
+    if (!self.is_utf8) {
+        if (!std.unicode.utf8ValidateSlice(self.source[self.index..])) {
+            return error.InvalidUtf8;
+        }
+        self.is_utf8 = true;
+    }
+    var iter: std.unicode.Utf8Iterator = .{ .bytes = self.source, .i = self.index };
+    while (iter.nextCodepoint()) |c| {
+        if (!unicode_id.canContinueId(c)) {
+            iter.i -= std.unicode.utf8CodepointSequenceLength(c) catch unreachable;
+            break;
+        }
+    }
+    self.index = iter.i;
 }

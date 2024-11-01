@@ -2,7 +2,12 @@
     .name = "xlang",
     .version = "0.0.0",
     .minimum_zig_version = "0.13.0",
-    .dependencies = .{},
+    .dependencies = .{
+        .@"unicode-id" = .{
+            .url = "https://codeberg.org/injuly/unicode-id/archive/c54660e62157e248136d702a48ebc9f285ef859e.tar.gz",
+            .hash = "12203b1625ea058ce5564168794c4a88ce004df018d6e1311fee298cbfd042b8a7c1",
+        },
+    },
     .paths = .{
         "build.zig",
         "build.zig.zon",

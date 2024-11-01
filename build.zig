@@ -8,6 +8,9 @@ pub fn build(b: *std.Build) void {
     const maybe_typelang_source: ?[]const u8 = b.option([]const u8, "typelang_source", "TypeLang source path") orelse null;
     const java_compat = b.option(bool, "java_compat", "Use Java-compatible formatting (only for testing)") orelse false;
 
+    const unicode_id = b.dependency("unicode-id", .{});
+    const unicode_id_mod = unicode_id.module("unicode-id");
+
     const xlang_mod = b.addModule("xlang", .{
         .root_source_file = b.path("src/xlang.zig"),
         .target = target,
@@ -17,6 +20,7 @@ pub fn build(b: *std.Build) void {
         const build_options = b.addOptions();
         build_options.addOption(bool, "java_compat", java_compat);
         xlang_mod.addImport("build_options", build_options.createModule());
+        xlang_mod.addImport("unicode-id", unicode_id_mod);
     }
 
     const exe = b.addExecutable(.{

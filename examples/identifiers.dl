@@ -1,0 +1,5 @@
+(define संस्कृत 23)
+(define $_$ 6)
+(define ᾩ 5)
+(define KingGeorgeⅦ 7)
+(+ संस्कृत $_$ ᾩ KingGeorgeⅦ)
