@@ -9,6 +9,7 @@
       href="https://fonts.bunny.net/css?family=archivo:400,500,800|roboto-mono:400"
       rel="stylesheet"
     />
+    <script src="https://cdn.jsdelivr.net/npm/js-base64@3.7.7/base64.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
     <link
       href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css "
@@ -272,8 +273,7 @@
         <div id="examples-list"></div>
       </div>
     </dialog>
-
-    <script type="module">
+    <script>
       require.config({
         paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor/min/vs" },
       });
@@ -458,7 +458,7 @@
           try {
             flavor.value = flavorCode[hash[0]];
             executionMode.value = executionModeCode[hash[2]];
-            editor.setValue(atob(hash.slice(3)));
+            editor.setValue(Base64.decode(hash.slice(3)));
           } catch (e) {
             console.error("failed to load program", e);
           }
@@ -552,7 +552,7 @@
           }
           waiting_execution = true;
           const mode = executionMode.value;
-          const newHash = `${flavor.value[0]}L${mode[0]}${btoa(
+          const newHash = `${flavor.value[0]}L${mode[0]}${Base64.encode(
             editor.getValue()
           )}`;
           if (location.hash !== "#" + newHash) {

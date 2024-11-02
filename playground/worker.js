@@ -9,11 +9,9 @@ addEventListener("message", async (e) => {
   const exports = await promise;
   const data = e.data;
   if (data.type === "codegen") {
-    const ptr = exports.allocSource(data.source.length);
-    enc.encodeInto(
-      data.source,
-      new Uint8Array(exports.memory.buffer, ptr, data.source.length)
-    );
+    const sourceBuf = enc.encode(data.source);
+    const ptr = exports.allocSource(sourceBuf.length);
+    new Uint8Array(exports.memory.buffer, ptr, sourceBuf.length).set(sourceBuf);
     const error_ptr = exports.codeGen(data.flavor, data.mode);
     if (error_ptr) {
       const error_info = new Uint32Array(exports.memory.buffer, error_ptr, 4);
