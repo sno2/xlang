@@ -485,8 +485,8 @@ fn equal(cg: *CodeGen, a: Type, b: Type) bool {
             return cg.equal(x, y);
         },
         .pair => {
-            const x = cg.type_extras.items[a.ref..][0..2];
-            const y = cg.type_extras.items[b.ref..][0..2];
+            const x = cg.type_extras.items[a.pair..][0..2];
+            const y = cg.type_extras.items[b.pair..][0..2];
             return cg.equal(x[0], y[0]) and cg.equal(x[1], y[1]);
         },
         .list => {
