@@ -28,7 +28,10 @@ pub fn deinit(exe: *Executable) void {
     exe.local_types.deinit(exe.cg.gpa);
 }
 
-pub fn allocLocal(exe: *Executable) u16 {
+pub fn allocLocal(exe: *Executable, maybe_type: anytype) !u16 {
+    if (@TypeOf(maybe_type) != void) {
+        try exe.local_types.append(exe.cg.gpa, maybe_type);
+    }
     defer exe.local_count += 1;
     return exe.local_count;
 }

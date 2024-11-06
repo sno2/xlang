@@ -139,7 +139,7 @@ const LazyDefine = struct {
     index: u16,
 };
 
-pub const Type = union(Tag) {
+pub const Type = union(enum) {
     unit,
     num,
     bool,
@@ -155,16 +155,7 @@ pub const Type = union(Tag) {
 
     const ExtraIndex = u32;
 
-    pub const Tag = enum(u8) {
-        unit,
-        num,
-        bool,
-        string,
-        function,
-        ref,
-        pair,
-        list,
-    };
+    pub const Tag = std.meta.Tag(Type);
 };
 
 pub const Error = std.mem.Allocator.Error || error{InvalidSyntax};
@@ -590,21 +581,12 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool, comptime is_type
                         const let = cg.let_stack.items[i];
                         const gop = try exe.locals.getOrPut(cg.gpa, let.identifier);
                         const old = if (gop.found_existing) gop.value_ptr.* else undefined;
-                        gop.value_ptr.* = exe.allocLocal();
-                        if (is_typed) {
-                            if (!gop.found_existing) {
-                                try exe.local_types.append(cg.gpa, let.type);
-                            } else {
-                                exe.local_types.items[gop.value_ptr.*] = let.type;
-                            }
-                        }
+                        gop.value_ptr.* = try exe.allocLocal(if (is_typed) let.type else {});
                         try exe.emit(.move_local, gop.value_ptr.*, null);
-                        if (gop.found_existing or cg.defines.contains(let.identifier)) {
-                            try cg.shadow_stack.append(cg.gpa, .{
-                                .name = let.identifier,
-                                .old_local = if (gop.found_existing) old else null,
-                            });
-                        }
+                        try cg.shadow_stack.append(cg.gpa, .{
+                            .name = let.identifier,
+                            .old_local = if (gop.found_existing) old else null,
+                        });
                     }
                     cg.let_stack.shrinkRetainingCapacity(let_stack_len);
 
@@ -744,16 +726,13 @@ fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool, comptime is_type
                     const type_scratch_len = cg.type_scratch.items.len;
                     while (cg.eatToken(.identifier)) |identifier| {
                         const gop = try exe2.locals.getOrPut(cg.gpa, identifier);
-                        gop.value_ptr.* = exe2.allocLocal();
                         if (is_typed) {
                             _ = try cg.expectToken(.@":");
                             const argument_type = try cg.parseType();
                             try cg.type_scratch.append(cg.gpa, argument_type);
-                            if (!gop.found_existing) {
-                                try exe2.local_types.append(cg.gpa, argument_type);
-                            } else {
-                                exe2.local_types.items[gop.value_ptr.*] = argument_type;
-                            }
+                            gop.value_ptr.* = try exe2.allocLocal(argument_type);
+                        } else {
+                            gop.value_ptr.* = try exe2.allocLocal({});
                         }
                         exe2.arguments += 1;
                     }
