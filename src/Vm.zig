@@ -482,7 +482,10 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                     switch (value.getTag()) {
                         .list => {
                             const list = value.getPayload(.list);
-                            vm.stack.appendAssumeCapacity(Value.init(.list, if (list == List.empty) list else list.next));
+                            if (list == List.empty) {
+                                try vm.throwException("invalid cdr on empty list", .{});
+                            }
+                            vm.stack.appendAssumeCapacity(Value.init(.list, list.next));
                         },
                         .pair => {
                             const pair = value.getPayload(.pair);
