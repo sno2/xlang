@@ -397,7 +397,7 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                 .move_define, .move_define_u8 => {
                     vm.stack.items[payload] = vm.stack.pop();
                 },
-                .move_capture => {
+                .move_capture, .move_capture_u8 => {
                     vm.stack.items[vm.captures_start + payload.capture] = vm.stack.items[cur.stack_start + payload.local];
                 },
                 .jump => {

@@ -54,6 +54,10 @@ pub const Instruction = union(enum(u8)) {
         local: u16,
         capture: u16,
     },
+    move_capture_u8: struct {
+        local: u8,
+        capture: u8,
+    },
     load_local: u16,
     load_local_u8: u8,
     load_define: u16,
@@ -105,6 +109,8 @@ pub fn emit(
         return exe.emit(.move_local_u8, @intCast(payload), source_hint);
     } else if (tag == .move_define and payload <= std.math.maxInt(u8)) {
         return exe.emit(.move_define_u8, @intCast(payload), source_hint);
+    } else if (tag == .move_capture and payload.local <= std.math.maxInt(u8) and payload.capture <= std.math.maxInt(u8)) {
+        return exe.emit(.move_capture_u8, .{ .local = @intCast(payload.local), .capture = @intCast(payload.capture) }, source_hint);
     } else if (tag == .push_list and payload <= std.math.maxInt(u8)) {
         return exe.emit(.push_list_u8, @intCast(payload), source_hint);
     } else if (tag == .call and payload <= std.math.maxInt(u8)) {

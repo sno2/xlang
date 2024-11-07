@@ -339,11 +339,11 @@ fn genIdentifier(cg: *CodeGen, exe: *Executable, identifier: []const u8, comptim
                 });
                 if (!gop.found_existing) {
                     gop.value_ptr.* = try cg.allocCapture();
-                    try parent.emit(.move_capture, .{
-                        .local = local,
-                        .capture = @intCast(gop.value_ptr.*),
-                    }, null);
                 }
+                try parent.emit(.move_capture, .{
+                    .local = local,
+                    .capture = @intCast(gop.value_ptr.*),
+                }, null);
                 try exe.emit(.load_capture, @intCast(exe.captures.items.len), null);
                 try exe.captures.append(cg.gpa, gop.value_ptr.*);
                 if (is_typed) return parent.local_types.items[local];

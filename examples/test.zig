@@ -195,6 +195,11 @@ test "identifiers" {
     try expectResult(@embedFile("identifiers.dl"), .definelang, "41.0");
 }
 
+test "capture cache regression" {
+    try expectResult(@embedFile("regression/capture_cache1.tl"), .typelang, "41.0");
+    try expectResult(@embedFile("regression/capture_cache2.tl"), .typelang, "20.0");
+}
+
 fn fuzzCodegen(initial_source: []const u8) !void {
     const source = std.testing.allocator.dupeZ(u8, initial_source) catch return;
     defer std.testing.allocator.free(source);
