@@ -156,6 +156,50 @@ pub const Type = union(enum) {
     const ExtraIndex = u32;
 
     pub const Tag = std.meta.Tag(Type);
+
+    pub fn equal(extras: []const Type, a: Type, b: Type) bool {
+        const a_tag: Type.Tag = a;
+        const b_tag: Type.Tag = b;
+
+        if (a_tag != b_tag) {
+            return false;
+        }
+
+        switch (a_tag) {
+            .unit, .num, .bool, .string => {},
+            .function => {
+                const a_args = extras[a.function].function;
+                const b_args = extras[b.function].function;
+                if (a_args != b_args) {
+                    return false;
+                }
+                for (
+                    extras[a.function + 1 ..][0 .. a_args + 1],
+                    extras[b.function + 1 ..][0 .. b_args + 1],
+                ) |a_el, b_el| {
+                    if (!Type.equal(extras, a_el, b_el)) {
+                        return false;
+                    }
+                }
+            },
+            .ref => {
+                const x = extras[a.ref];
+                const y = extras[b.ref];
+                return Type.equal(extras, x, y);
+            },
+            .pair => {
+                const x = extras[a.pair..][0..2];
+                const y = extras[b.pair..][0..2];
+                return Type.equal(extras, x[0], y[0]) and Type.equal(extras, x[1], y[1]);
+            },
+            .list => {
+                const x = extras[a.list];
+                const y = extras[b.list];
+                return Type.equal(extras, x, y);
+            },
+        }
+        return true;
+    }
 };
 
 pub const Error = std.mem.Allocator.Error || error{InvalidSyntax};
@@ -446,47 +490,7 @@ fn parseType(cg: *CodeGen) !Type {
 }
 
 fn equal(cg: *CodeGen, a: Type, b: Type) bool {
-    const a_tag: Type.Tag = a;
-    const b_tag: Type.Tag = b;
-
-    if (a_tag != b_tag) {
-        return false;
-    }
-
-    switch (a_tag) {
-        .unit, .num, .bool, .string => {},
-        .function => {
-            const a_args = cg.type_extras.items[a.function].function;
-            const b_args = cg.type_extras.items[b.function].function;
-            if (a_args != b_args) {
-                return false;
-            }
-            for (
-                cg.type_extras.items[a.function + 1 ..][0 .. a_args + 1],
-                cg.type_extras.items[b.function + 1 ..][0 .. b_args + 1],
-            ) |a_el, b_el| {
-                if (!cg.equal(a_el, b_el)) {
-                    return false;
-                }
-            }
-        },
-        .ref => {
-            const x = cg.type_extras.items[a.ref];
-            const y = cg.type_extras.items[b.ref];
-            return cg.equal(x, y);
-        },
-        .pair => {
-            const x = cg.type_extras.items[a.pair..][0..2];
-            const y = cg.type_extras.items[b.pair..][0..2];
-            return cg.equal(x[0], y[0]) and cg.equal(x[1], y[1]);
-        },
-        .list => {
-            const x = cg.type_extras.items[a.list];
-            const y = cg.type_extras.items[b.list];
-            return cg.equal(x, y);
-        },
-    }
-    return true;
+    return Type.equal(cg.type_extras.items, a, b);
 }
 
 fn genExpression(cg: *CodeGen, exe: *Executable, is_tail: bool, comptime is_typed: bool) !if (is_typed) Type else void {
