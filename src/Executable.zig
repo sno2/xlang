@@ -87,12 +87,15 @@ pub const Instruction = union(enum(u8)) {
     push_result,
 
     pub const Tag = std.meta.Tag(Instruction);
+    pub fn Payload(comptime tag: Tag) type {
+        return @FieldType(Instruction, @tagName(tag));
+    }
 };
 
 pub fn emit(
     exe: *Executable,
     comptime tag: Instruction.Tag,
-    payload: std.meta.TagPayload(Instruction, tag),
+    payload: Instruction.Payload(tag),
     source_hint: ?usize,
 ) !void {
     const Payload = @TypeOf(payload);
@@ -144,11 +147,11 @@ pub fn emitDeferred(
     exe: *Executable,
     comptime tag: Instruction.Tag,
     source_hint: ?usize,
-) !DeferredEmit(std.meta.TagPayload(Instruction, tag)) {
+) !DeferredEmit(Instruction.Payload(tag)) {
     try exe.emit(tag, undefined, source_hint);
     return .{
         .exe = exe,
-        .index = exe.bytecode.items.len - @sizeOf(std.meta.TagPayload(Instruction, tag)),
+        .index = exe.bytecode.items.len - @sizeOf(Instruction.Payload(tag)),
     };
 }
 

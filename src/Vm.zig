@@ -335,7 +335,7 @@ pub fn execute(vm: *Vm, program: *const Executable) std.mem.Allocator.Error![]Va
         error.ExceptionThrown => {
             try vm.stack_trace.ensureUnusedCapacity(vm.gpa, 1 + vm.call_stack.items.len);
             vm.stack_trace.appendAssumeCapacity(vm.cur.exe.source_mapping.items[vm.cur.index -| 1]);
-            while (vm.call_stack.popOrNull()) |entry| {
+            while (vm.call_stack.pop()) |entry| {
                 vm.stack_trace.appendAssumeCapacity(entry.exe.source_mapping.items[entry.index -| 1]);
             }
             return vm.stack.items[start_results..][0..vm.results_pushed];
@@ -348,16 +348,15 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
     insn: switch (@as(Instruction.Tag, @enumFromInt(cur.exe.bytecode.items[cur.index]))) {
         inline else => |tag| {
             cur.index += 1;
-            @setEvalBranchQuota(10_000);
-            const Payload = std.meta.TagPayload(Instruction, tag);
+            const Payload = Instruction.Payload(tag);
             const payload_ptr: *align(1) const Payload = @ptrCast(cur.exe.bytecode.items[cur.index..][0..@sizeOf(Payload)]);
             const payload = payload_ptr.*;
             cur.index += @sizeOf(Payload);
 
             switch (tag) {
                 .@"return" => {
-                    if (vm.call_stack.popOrNull()) |next| {
-                        const result = vm.stack.pop();
+                    if (vm.call_stack.pop()) |next| {
+                        const result = vm.stack.pop().?;
                         vm.stack.items.len -= cur.exe.local_count;
                         std.debug.assert(vm.stack.items.len == cur.stack_start);
                         vm.stack.appendAssumeCapacity(result);
@@ -370,8 +369,8 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                     try vm.stack.append(vm.gpa, vm.constants[payload]);
                 },
                 .addition, .subtraction, .multiplication, .division, .less, .greater, .equal => {
-                    const right = vm.stack.pop();
-                    const left = vm.stack.pop();
+                    const right = vm.stack.pop().?;
+                    const left = vm.stack.pop().?;
                     vm.stack.appendAssumeCapacity(try vm.applyBinaryOperator(tag, left, right));
                 },
                 .load_local, .load_local_u8 => {
@@ -392,10 +391,10 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                     try vm.stack.append(vm.gpa, cur.lambda.?.captures.?[payload]);
                 },
                 .move_local, .move_local_u8 => {
-                    vm.stack.items[cur.stack_start + payload] = vm.stack.pop();
+                    vm.stack.items[cur.stack_start + payload] = vm.stack.pop().?;
                 },
                 .move_define, .move_define_u8 => {
-                    vm.stack.items[payload] = vm.stack.pop();
+                    vm.stack.items[payload] = vm.stack.pop().?;
                 },
                 .move_capture, .move_capture_u8 => {
                     vm.stack.items[vm.captures_start + payload.capture] = vm.stack.items[cur.stack_start + payload.local];
@@ -404,7 +403,7 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                     cur.index += payload;
                 },
                 .jump_if_not => {
-                    const condition = vm.stack.pop();
+                    const condition = vm.stack.pop().?;
                     if (condition == .boolean_false) {
                         cur.index += payload;
                     } else if (condition != .boolean_true) {
@@ -446,8 +445,8 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                     try vm.stack.append(vm.gpa, Value.init(.list, last));
                 },
                 .cons => {
-                    const right = vm.stack.pop();
-                    const left = vm.stack.pop();
+                    const right = vm.stack.pop().?;
+                    const left = vm.stack.pop().?;
 
                     if (right.getTag() == .list) {
                         const list = try vm.heap.createObject(.list, .{
@@ -464,7 +463,7 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                     }
                 },
                 .car => {
-                    const value = vm.stack.pop();
+                    const value = vm.stack.pop().?;
                     switch (value.getTag()) {
                         .list => {
                             const list = value.getPayload(.list);
@@ -478,7 +477,7 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                     }
                 },
                 .cdr => {
-                    const value = vm.stack.pop();
+                    const value = vm.stack.pop().?;
                     switch (value.getTag()) {
                         .list => {
                             const list = value.getPayload(.list);
@@ -495,19 +494,19 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                     }
                 },
                 .null => {
-                    const value = vm.stack.pop();
+                    const value = vm.stack.pop().?;
                     const is_null = value.getTag() == .list and value.getPayload(.list) == List.empty;
                     vm.stack.appendAssumeCapacity(Value.init(.boolean, is_null));
                 },
                 .ref => {
-                    const value = vm.stack.pop();
+                    const value = vm.stack.pop().?;
                     const reference = try vm.heap.createObject(.reference, .{
                         .value = value,
                     });
                     vm.stack.appendAssumeCapacity(Value.init(.reference, reference));
                 },
                 .free => {
-                    const reference_value = vm.stack.pop();
+                    const reference_value = vm.stack.pop().?;
                     if (reference_value.getTag() != .reference) {
                         try vm.throwException("invalid free on non-reference value", .{});
                     }
@@ -520,7 +519,7 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                     vm.stack.appendAssumeCapacity(.empty);
                 },
                 .deref => {
-                    const reference_value = vm.stack.pop();
+                    const reference_value = vm.stack.pop().?;
                     if (reference_value.getTag() != .reference) {
                         try vm.throwException("invalid deref on non-reference value", .{});
                     }
@@ -532,8 +531,8 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                     vm.stack.appendAssumeCapacity(reference.value);
                 },
                 .set => {
-                    const reference_value = vm.stack.pop();
-                    const value = vm.stack.pop();
+                    const reference_value = vm.stack.pop().?;
+                    const value = vm.stack.pop().?;
                     if (reference_value.getTag() != .reference) {
                         try vm.throwException("invalid set on non-reference value", .{});
                     }
@@ -599,7 +598,7 @@ fn executeInner(vm: *Vm, cur: *StackInfo, program: *const Executable) ![]Value {
                         vm.stack.items[cur.stack_start..][0..payload],
                         vm.stack.items[cur.stack_start + 1 ..][0..payload],
                     );
-                    _ = vm.stack.pop();
+                    _ = vm.stack.pop().?;
                 },
                 .push_result => {
                     vm.results_pushed += 1;

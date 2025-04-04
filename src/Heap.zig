@@ -10,11 +10,9 @@ const Value = Vm.Value;
 const Heap = @This();
 
 gpa: std.mem.Allocator,
-pages: std.ArrayListUnmanaged(*Page),
+page_len: usize,
+pages: std.ArrayListUnmanaged([]Object),
 free_head: ?*FreeRange,
-
-const page_len = std.mem.page_size / @sizeOf(Object);
-const Page = [page_len]Object;
 
 pub const Object = extern union {
     free_range: FreeRange,
@@ -101,18 +99,20 @@ pub const Lambda = extern struct {
 };
 
 pub fn init(gpa: std.mem.Allocator) !Heap {
-    const page = try gpa.create(Page);
+    const page_len = std.heap.pageSize() / @sizeOf(Object);
+    const page = try gpa.alloc(Object, page_len);
     page[0] = .{
         .free_range = .{ .len = page.len, .next = null },
     };
-    errdefer gpa.destroy(page);
+    errdefer gpa.free(page);
 
-    var pages: std.ArrayListUnmanaged(*Page) = .empty;
+    var pages: std.ArrayListUnmanaged([]Object) = .empty;
     errdefer pages.deinit(gpa);
     try pages.append(gpa, page);
 
     return .{
         .gpa = gpa,
+        .page_len = page_len,
         .pages = pages,
         .free_head = &page[0].free_range,
     };
@@ -127,7 +127,7 @@ pub fn deinit(heap: *Heap) void {
                 }
             }
         }
-        heap.gpa.destroy(page);
+        heap.gpa.free(page);
     }
     heap.pages.deinit(heap.gpa);
 }
@@ -140,7 +140,7 @@ fn growPages(heap: *Heap, initial_free_tail: ?*FreeRange, n: usize) !void {
     var free_tail = initial_free_tail;
     try heap.pages.ensureUnusedCapacity(heap.gpa, n);
     for (0..n) |_| {
-        const page = try heap.gpa.create(Page);
+        const page = try heap.gpa.alloc(Object, heap.page_len);
         page[0] = .{
             .free_range = .{ .len = page.len, .next = null },
         };
@@ -205,7 +205,7 @@ fn markStack(heap: *Heap) !void {
         }
 
         while (vm.stack.items.len > stack_len) {
-            const value = vm.stack.pop();
+            const value = vm.stack.pop().?;
             switch (value.getTag()) {
                 .pair => {
                     const pair = value.getPayload(.pair);
@@ -271,12 +271,12 @@ pub fn createObject(
         try heap.collect();
         switch (tag) {
             .pair => {
-                data.right = vm.stack.pop();
-                data.left = vm.stack.pop();
+                data.right = vm.stack.pop().?;
+                data.left = vm.stack.pop().?;
             },
             .list => {
-                data.next = vm.stack.pop().getPayload(.list);
-                data.value = vm.stack.pop();
+                data.next = vm.stack.pop().?.getPayload(.list);
+                data.value = vm.stack.pop().?;
             },
             .reference => {
                 vm.stack.appendAssumeCapacity(data.value);

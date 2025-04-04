@@ -1,18 +1,19 @@
 .{
-    .name = "xlang",
+    .name = .xlang,
     .version = "0.0.0",
-    .minimum_zig_version = "0.13.0",
+    .fingerprint = 0x1fcd076d9345c73c, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.14.0",
     .dependencies = .{
         .@"unicode-id" = .{
-            .url = "https://codeberg.org/injuly/unicode-id/archive/c54660e62157e248136d702a48ebc9f285ef859e.tar.gz",
-            .hash = "12203b1625ea058ce5564168794c4a88ce004df018d6e1311fee298cbfd042b8a7c1",
+            .url = "https://codeberg.org/injuly/unicode-id/archive/ab463d6fe5dae906ac112c1361a7436bd1c9cda9.tar.gz",
+            .hash = "1220ef39025bb5b70b8ae4c97eca164139c2ecd093086e30058dba33d4058512716a",
         },
     },
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "src",
-        "playground/wasm.zig",
+        "playground",
         "examples",
     },
 }

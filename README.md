@@ -10,10 +10,8 @@ Rajan.
 
 ## Implementation details
 
-xlang is written using the master version of the
-[Zig programming language](https://ziglang.org/). Zig allows xlang to run on
-many different platforms such as the web via
-[WebAssembly](https://webassembly.org/).
+xlang is written using [Zig 0.14](https://ziglang.org/download/#release-0.14.0). Zig allows xlang to
+run on many different platforms such as the web via [WebAssembly](https://webassembly.org/).
 
 The tokenizer is piped directly into code generation and xlang compiles the
 source code into a bytecode format on the fly. This technique is also used by

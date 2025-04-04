@@ -200,7 +200,7 @@ test "capture cache regression" {
     try expectResult(@embedFile("regression/capture_cache2.tl"), .typelang, "20.0");
 }
 
-fn fuzzCodegen(initial_source: []const u8) !void {
+fn fuzzCodegen(_: void, initial_source: []const u8) !void {
     const source = std.testing.allocator.dupeZ(u8, initial_source) catch return;
     defer std.testing.allocator.free(source);
     const first = if (initial_source.len == 0) 0 else initial_source[0];
@@ -212,5 +212,5 @@ fn fuzzCodegen(initial_source: []const u8) !void {
 
 test "fuzz code generation" {
     if (is_java) return error.SkipZigTest;
-    try std.testing.fuzz(fuzzCodegen, .{});
+    try std.testing.fuzz({}, fuzzCodegen, .{});
 }
